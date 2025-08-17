@@ -6,6 +6,14 @@
 #include <Wt/WSpinBox.h>
 #include <Wt/Json/Object.h>
 
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <iostream>
+
+int read_csv(const std::string& path);
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ApplicationMap
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,7 +26,6 @@ public:
 
 private:
   Wt::WLeafletMap* map;
-
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,5 +71,35 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
+  if (read_csv("dc_311-2016.csv.s0311.csv") < 0)
+  {
+    return 1;
+  }
+
+
   return Wt::WRun(argc, argv, &create_application);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// read_csv
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int read_csv(const std::string& path)
+{
+  std::ifstream file(path);
+  if (!file.is_open())
+  {
+    return -1;
+  }
+
+  std::string line;
+  int nbr_lines = 0;
+  while (std::getline(file, line))
+  {
+    nbr_lines++;
+  }
+
+  file.close();
+
+  return nbr_lines;
 }
