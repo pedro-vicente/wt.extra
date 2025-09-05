@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 {
   if (read_csv("dc_311-2016.csv.s0311.csv") < 0)
   {
-    return 1;
+    
   }
 
 

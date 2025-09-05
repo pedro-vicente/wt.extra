@@ -1,11 +1,10 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.20)
 set(CMAKE_BUILD_TYPE Debug)
 project (wt.extra)
 
 message(STATUS "Source directory is " ${CMAKE_SOURCE_DIR})
 message(STATUS "Build directory is " ${CMAKE_CURRENT_BINARY_DIR})
 message(STATUS "WT_INCLUDE: " ${WT_INCLUDE})
-message(STATUS "WT_CONFIG_H: " ${WT_CONFIG_H})
 message(STATUS "BOOST_INCLUDE_DIR: " ${BOOST_INCLUDE_DIR})
 message(STATUS "BOOST_LIB_DIRS: " ${BOOST_LIB_DIRS})
 
@@ -13,10 +12,6 @@ set (CMAKE_CXX_STANDARD 14)
 
 include_directories(${BOOST_INCLUDE_DIR})
 include_directories(${WT_INCLUDE})
-include_directories(${WT_CONFIG_H})
-include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories(${CMAKE_SOURCE_DIR}/ext/wt-4.12.0/src)
-
 add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 
 #//////////////////////////
@@ -27,17 +22,12 @@ set(src ${src})
 set(src ${src} src/map.cc)
 add_executable(map ${src})
 
-#//////////////////////////
-# set map as startup project for Visual Studio
-#//////////////////////////
-
 if (MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT map)
   set_property(TARGET map PROPERTY 
-    VS_DEBUGGER_COMMAND_ARGUMENTS "--http-address=0.0.0.0 --http-port=8080  --docroot=. ")
+    VS_DEBUGGER_COMMAND_ARGUMENTS "--http-address=0.0.0.0 --http-port=8080  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson")
   set_property(TARGET map PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
-
 
 #//////////////////////////
 # link with libraries
@@ -56,8 +46,13 @@ endif()
 
 if(UNIX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -Wno-deprecated-declarations")
-  message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
 endif()
+
+if(APPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-deprecated-copy -Wno-deprecated-copy-dtor")
+endif()
+
+message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
 
 #//////////////////////////
 # LINUX
@@ -82,20 +77,19 @@ if (MSVC)
 endif()
 
 if(APPLE)
-  set(lib_dep ${lib_dep} /Users/pvn/wt_install/lib/libwt.dylib)
-  set(lib_dep ${lib_dep} /Users/pvn/wt_install/lib/libwthttp.dylib)
-  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_filesystem.a)
-  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_thread.a)
-  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_program_options.a)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/libwt.dylib)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/libwthttp.dylib)
+  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_filesystem-clang-darwin17-mt-x64-1_88.a)
+  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_thread-clang-darwin17-mt-x64-1_88.a)
+  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_program_options-clang-darwin17-mt-x64-1_88.a)
 endif()
 
 if (LINUX)
-  set(lib_dep ${lib_dep} /home/pvn/wt_install/lib/libwt.so)
-  set(lib_dep ${lib_dep} /home/pvn/wt_install/lib/libwthttp.so)
-  set(BOOST_LIB_DIRS /home/pvn/wt.extra/build/boost_1_88_0/lib)
-  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_filesystem.so)
-  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_thread.so)
-  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_program_options.so)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/libwt.so)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/libwthttp.so)
+  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_filesystem-gcc13-mt-x64-1_88.a)
+  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_thread-gcc13-mt-x64-1_88.a)
+  set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_program_options-gcc13-mt-x64-1_88.a)
 endif()
 
 #//////////////////////////
@@ -104,3 +98,21 @@ endif()
 
 message(STATUS "lib_dep: " ${lib_dep})
 target_link_libraries (map ${lib_dep})
+
+#//////////////////////////
+# data files 
+#//////////////////////////
+
+message(STATUS "Copying wt_config.xml to: ${CMAKE_SOURCE_DIR}/install/wt/etc/wt)")
+file(COPY "${CMAKE_SOURCE_DIR}/resources/wt_config_leaflet.xml" DESTINATION ${CMAKE_SOURCE_DIR}/install/wt/etc/wt)
+
+message(STATUS "Copying data files to: ${CMAKE_BINARY_DIR}")
+set(DATA_FILES
+  "resources/dc_311-2016.csv.s0311.csv"
+  "resources/ward-2012.geojson"
+)
+
+message(STATUS "Copying data files to: ${CMAKE_BINARY_DIR}")
+foreach(DATA_FILE ${DATA_FILES})
+  file(COPY "${CMAKE_SOURCE_DIR}/${DATA_FILE}" DESTINATION ${CMAKE_BINARY_DIR})
+endforeach()
