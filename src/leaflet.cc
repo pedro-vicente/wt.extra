@@ -1,6 +1,10 @@
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
-#include <WMapbox.hh>
+#include <Wt/WLeafletMap.h>
+#include <Wt/WPushButton.h>
+#include <Wt/WServer.h>
+#include <Wt/WSpinBox.h>
+#include <Wt/Json/Object.h>
 
 #include <fstream>
 #include <sstream>
@@ -21,7 +25,7 @@ public:
   virtual ~ApplicationMap();
 
 private:
-  Wt::WMapbox* map;
+  Wt::WLeafletMap* map;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,9 +34,17 @@ private:
 
 ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
   : WApplication(env),
-  map(root()->addNew<Wt::WMapbox>())
+  map(root()->addNew<Wt::WLeafletMap>())
 {
- 
+  map->resize(1920, 1080);
+  map->setZoomLevel(12);
+
+  Wt::Json::Object options;
+  options["maxZoom"] = 19;
+  options["attribution"] = "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>";
+  map->addTileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", options);
+
+  map->panTo(Wt::WLeafletMap::Coordinate(38.9072, -77.0369));
 
 }
 

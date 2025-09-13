@@ -39,9 +39,15 @@ set_target_properties(wttest PROPERTIES FOLDER "ext")
 # source files
 #//////////////////////////
 
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/wt-4.12.0/src")
 set(src ${src})
 set(src ${src} src/map.cc)
+set(src ${src} src/WMapbox.cc)
+set(src ${src} src/WMapbox.hh)
 add_executable(map ${src})
+
+add_executable(leaflet src/leaflet.cc)
 
 if (MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT map)
@@ -119,6 +125,7 @@ endif()
 
 message(STATUS "lib_dep: " ${lib_dep})
 target_link_libraries (map ${lib_dep})
+target_link_libraries (leaflet ${lib_dep})
 
 #//////////////////////////
 # data files 
