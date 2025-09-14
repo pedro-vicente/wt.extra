@@ -47,6 +47,8 @@ namespace Wt
   {
     WCompositeWidget::render(flags);
 
+    std::string style = "mapbox://styles/mapbox/light-v11";
+
     if (flags.test(RenderFlag::Full))
     {
       WApplication* app = WApplication::instance();
@@ -55,14 +57,16 @@ namespace Wt
         "  mapboxgl.accessToken = 'pk.eyJ1IjoicGVkcm92aWNlbnRlIiwiYSI6ImNtZmlsZTAzdzAwNmgya3BwaDluYzE2a2cifQ.d7DMAInp3KDvRRsAAohqlA';"
         "  const map = new mapboxgl.Map({"
         "    container: " + jsRef() + ","
-        "    center: [-77.0369, 38.9072],"
+        "    center: [-76.90, 38.85],"
+        "    style: '" + style + "',"
         "    zoom: 11"
         "  });"
+        "  " + jsRef() + ".mapboxMap = map;"
         "}";
 
       app->doJavaScript(js);
     }
-  }
 
 
-}
+  } //WMapbox
+}// namespace Wt

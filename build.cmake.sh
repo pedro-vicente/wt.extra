@@ -40,7 +40,7 @@ fi
 if [[ "$OSTYPE" != "msys" ]]; then
 echo $(pwd)
 echo "open browser http://localhost:9000"
-./map --http-address=0.0.0.0 --http-port=9000  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson
+./map --http-address=0.0.0.0 --http-port=9001  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson
 fi
 
 popd
