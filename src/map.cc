@@ -19,9 +19,6 @@ class ApplicationMap : public Wt::WApplication
 public:
   ApplicationMap(const Wt::WEnvironment& env);
   virtual ~ApplicationMap();
-
-private:
-  Wt::WMapbox* map;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,11 +26,10 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
-  : WApplication(env),
-  map(root()->addNew<Wt::WMapbox>())
+  : WApplication(env)
 {
- 
-
+  Wt::WMapbox* map = root()->addWidget(std::make_unique<Wt::WMapbox>());
+  map->resize(1920, 1080);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,7 +57,7 @@ int main(int argc, char* argv[])
 {
   if (read_csv("dc_311-2016.csv.s0311.csv") < 0)
   {
-    
+
   }
 
 

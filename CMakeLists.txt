@@ -16,24 +16,26 @@ include_directories(${WT_INCLUDE})
 add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 
 #//////////////////////////
-# build Wt
+# build Wt on Windows (debug sources)
 #//////////////////////////
 
-set(BOOST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0")
-set(Boost_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0/include")
-set(DBoost_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0/lib")
-set(BUILD_EXAMPLES OFF)
-set(BUILD_TESTS OFF)
-set(SHARED_LIBS OFF)
-add_subdirectory(ext/wt-4.12.0)
-set_target_properties(wt PROPERTIES FOLDER "ext")
-set_target_properties(wthttp PROPERTIES FOLDER "ext")
-set_target_properties(wtisapi PROPERTIES FOLDER "ext")
-set_target_properties(doc PROPERTIES FOLDER "ext")
-set_target_properties(wtdbo PROPERTIES FOLDER "ext")
-set_target_properties(wtdbomssqlserver PROPERTIES FOLDER "ext")
-set_target_properties(wtdbosqlite3 PROPERTIES FOLDER "ext")
-set_target_properties(wttest PROPERTIES FOLDER "ext")
+if (MSVC)
+  set(BOOST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0")
+  set(Boost_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0/include")
+  set(DBoost_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0/lib")
+  set(BUILD_EXAMPLES OFF)
+  set(BUILD_TESTS OFF)
+  set(SHARED_LIBS OFF)
+  add_subdirectory(ext/wt-4.12.0)
+  set_target_properties(wt PROPERTIES FOLDER "ext")
+  set_target_properties(wthttp PROPERTIES FOLDER "ext")
+  set_target_properties(doc PROPERTIES FOLDER "ext")
+  set_target_properties(wtdbo PROPERTIES FOLDER "ext")
+  set_target_properties(wtdbosqlite3 PROPERTIES FOLDER "ext")
+  set_target_properties(wttest PROPERTIES FOLDER "ext")
+  set_target_properties(wtdbomssqlserver PROPERTIES FOLDER "ext")
+  set_target_properties(wtisapi PROPERTIES FOLDER "ext")
+endif()
 
 #//////////////////////////
 # source files

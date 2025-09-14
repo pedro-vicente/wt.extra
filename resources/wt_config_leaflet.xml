@@ -157,7 +157,7 @@
 
                Path used by Wt to do session management.
               -->
-            <run-directory>c:/witty</run-directory>
+            <run-directory>/home/pvn/services/wt.extra/install/wt/var/run/wt</run-directory>
 
         </connector-fcgi>
 
@@ -799,8 +799,8 @@
                This is required if you want to use WLeafletMap, since leaflet itself is not bundled with Wt.
                leafletJSURL should be a valid URL leading to the leaflet JavaScript, and leafletCSSURL to the leaflet CSS.
               -->
-            <property name="leafletJSURL">https://unpkg.com/leaflet@1.5.1/dist/leaflet.js</property>
-            <property name="leafletCSSURL">https://unpkg.com/leaflet@1.5.1/dist/leaflet.css</property>
+            <!-- <property name="leafletJSURL">https://unpkg.com/leaflet@1.5.1/dist/leaflet.js</property> -->
+            <!-- <property name="leafletCSSURL">https://unpkg.com/leaflet@1.5.1/dist/leaflet.css</property> -->
 
             <!-- google_api_key property
 

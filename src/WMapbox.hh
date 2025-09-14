@@ -1,15 +1,14 @@
 #ifndef WMAPBOX_HH
 #define WMAPBOX_HH
 
-#include <Wt/WBrush.h>
 #include <Wt/WCompositeWidget.h>
-#include <Wt/WJavaScript.h>
-#include <Wt/WPen.h>
-#include <Wt/Json/Object.h>
 
-namespace Wt 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// WMapbox
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace Wt
 {
-
   class WT_API WMapbox : public WCompositeWidget
   {
     class Impl;
@@ -19,8 +18,6 @@ namespace Wt
   protected:
     Impl* impl;
     virtual void render(WFlags<RenderFlag> flags) override;
-    
-    
   };
 
 }

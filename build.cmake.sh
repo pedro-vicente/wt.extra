@@ -16,7 +16,7 @@ cmake ../.. --fresh \
     -DWT_INCLUDE="$path_wt/include" \
     -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
     -DBOOST_LIB_DIRS="$path_boost/lib" 
-cmake --build . --parallel 
+cmake --build . --parallel 2
 
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -40,7 +40,7 @@ fi
 if [[ "$OSTYPE" != "msys" ]]; then
 echo $(pwd)
 echo "open browser http://localhost:9000"
-./test_extensions --http-address=0.0.0.0 --http-port=9000  --docroot=. -t 2 -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson
+./map --http-address=0.0.0.0 --http-port=9000  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson
 fi
 
 popd
