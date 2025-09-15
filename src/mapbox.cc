@@ -11,6 +11,8 @@
 #include <iostream>
 
 csv_parser* parser = nullptr;
+int load_dc311_simple();
+int load_dc311_full();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ApplicationMap
@@ -24,7 +26,6 @@ public:
 
 private:
   Wt::WMapbox* map;
-  void setup_map_with_data();
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,7 +39,11 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 
   map = root()->addWidget(std::make_unique<Wt::WMapbox>());
   map->resize(1920, 1080);
-  setup_map_with_data();
+ 
+  if (parser && !parser->latitude.empty()) 
+  {
+    map->set_data(parser->latitude, parser->longitude);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,15 +52,6 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 
 ApplicationMap::~ApplicationMap()
 {
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// setup_map_with_data
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void ApplicationMap::setup_map_with_data()
-{
- 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,6 +70,24 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 int main(int argc, char* argv[])
 {
   std::cout << "Loading CSV data ..." << std::endl;
+
+  if (load_dc311_simple() < 0)
+  {
+  }
+
+  int result = Wt::WRun(argc, argv, &create_application);
+
+  delete parser;
+  parser = nullptr;
+  return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// load_dc311_full
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_dc311_full()
+{
   parser = new csv_parser("311_city_service_requests_2024_part1.csv", "311_city_service_requests_2024_part2.csv");
 
   auto start_time = std::chrono::high_resolution_clock::now();
@@ -92,11 +106,40 @@ int main(int argc, char* argv[])
     {
       std::cout << "  " << parser->headers[idx] << std::endl;
     }
+    return 1;
   }
 
-  int result = Wt::WRun(argc, argv, &create_application);
-
-  delete parser;
-  parser = nullptr;
-  return result;
+  return -1;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// load_dc311_simple
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_dc311_simple()
+{
+  parser = new csv_parser("dc_311-2016.csv.s0311.csv");
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  if (parser->load_simple_file())
+  {
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+    std::cout << "File loaded in: " << duration.count() << " ms" << std::endl;
+    std::cout << "Rows: " << parser->latitude.size() << std::endl;
+    std::cout << "Columns: " << parser->headers.size() << std::endl;
+
+    std::cout << "Headers:" << std::endl;
+    for (size_t idx = 0; idx < parser->headers.size(); ++idx)
+    {
+      std::cout << "  " << parser->headers[idx] << std::endl;
+    }
+    return 1;
+  }
+
+  return -1;
+}
+
+

@@ -138,3 +138,60 @@ std::string csv_parser::trim_whitespace(const std::string& str)
   size_t end = str.find_last_not_of(" \t\r\n");
   return str.substr(start, end - start + 1);
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// load_simple_file
+// load simple time,latitude,longitude,zip format
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int csv_parser::load_simple_file()
+{
+  std::ifstream file(file_path1);
+  if (!file.is_open())
+  {
+    return -1;
+  }
+
+  std::string line;
+  int first_line = 1;
+
+  while (std::getline(file, line))
+  {
+    if (line.empty())
+    {
+      continue;
+    }
+
+    std::vector<std::string> row = parse_line(line);
+
+    if (first_line && has_headers)
+    {
+      // store headers: time,latitude,longitude,zip
+      headers = row;
+      first_line = 0;
+    }
+    else
+    {
+      //parse simple format: time,latitude,longitude,zip
+      std::string time_str = row[0];
+      std::string lat = row[1];
+      std::string lon = row[2];
+
+      try
+      {
+        double lat_ = std::stod(lat);
+        double lon_ = std::stod(lon);
+        latitude.push_back(lat);
+        longitude.push_back(lon);
+      }
+      catch (const std::exception& e)
+      {
+      }
+
+      if (first_line) first_line = 0;
+    }
+  }
+
+  file.close();
+  return 1;
+}

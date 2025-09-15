@@ -21,6 +21,7 @@ public:
   std::vector<std::string> parse_line(const std::string& line);
   std::string trim_whitespace(const std::string& str);
   int load_single_file(const std::string& file_path, int append_data = 0);
+  
 
   std::string file_path1;
   std::string file_path2;
@@ -29,6 +30,16 @@ public:
   int dual_file_mode;
   std::vector<std::string> headers;
   std::vector<std::vector<std::string>> data;
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // DC311 simplified format
+  // time,latitude,longitude,zip
+  // 2016-10-29T15:09:22Z,38.91374182,-77.00176208,20002,
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  int load_simple_file();
+  std::vector<std::string> latitude;
+  std::vector<std::string> longitude;
  
 };
 

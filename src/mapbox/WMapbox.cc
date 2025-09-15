@@ -40,6 +40,17 @@ namespace Wt
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // set_data
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  void WMapbox::set_data(const std::vector<std::string>& latitudes, const std::vector<std::string>& longitudes)
+  {
+    latitude = latitudes;
+    longitude = longitudes;
+    std::cout << "Set circle data: " << latitudes.size() << " points" << std::endl;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
   // render
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -57,16 +68,87 @@ namespace Wt
         "  mapboxgl.accessToken = 'pk.eyJ1IjoicGVkcm92aWNlbnRlIiwiYSI6ImNtZmlsZTAzdzAwNmgya3BwaDluYzE2a2cifQ.d7DMAInp3KDvRRsAAohqlA';"
         "  const map = new mapboxgl.Map({"
         "    container: " + jsRef() + ","
-        "    center: [-76.90, 38.85],"
+        "    center: [-76.90, 38.85]," //longitude, latitude
         "    style: '" + style + "',"
         "    zoom: 11"
         "  });"
         "  " + jsRef() + ".mapboxMap = map;"
+
+        "  map.on('load', function() {"
+        "    console.log('Map loaded, adding circles...');"
+        "    ";
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // GeoJSON source for circles
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      if (!latitude.empty() && !longitude.empty())
+      {
+        js +=
+          "    map.addSource('circle-points', {"
+          "      'type': 'geojson',"
+          "      'data': {"
+          "        'type': 'FeatureCollection',"
+          "        'features': [";
+
+        bool first_feature = true;
+
+        for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
+        {
+          std::string lat = latitude[idx];
+          std::string lon = longitude[idx];
+
+          if (!lat.empty() && !lon.empty())
+          {
+            if (!first_feature) js += ",";
+            first_feature = false;
+
+            std::string color = "#ff0000";
+            js +=
+              "{"
+              "  'type': 'Feature',"
+              "  'geometry': {"
+              "    'type': 'Point',"
+              "    'coordinates': [" + lon + ", " + lat + "]"
+              "  },"
+              "  'properties': {"
+              "    'color': '" + color + "',"
+              "    'index': " + std::to_string(idx) + ","
+              "    'lat': '" + lat + "',"
+              "    'lng': '" + lon + "'"
+              "  }"
+              "}";
+          }
+        }
+
+        js +=
+          "        ]"
+          "      }"
+          "    });"
+          "    "
+          //add circle layer
+          "    map.addLayer({"
+          "      'id': 'circles',"
+          "      'type': 'circle',"
+          "      'source': 'circle-points',"
+          "      'paint': {"
+          "        'circle-radius': 8,"
+          "        'circle-color': ['get', 'color'],"
+          "        'circle-opacity': 0.2,"
+          "        'circle-stroke-width': 0,"
+          "        'circle-stroke-color': ['get', 'color'],"
+          "        'circle-stroke-opacity': 0.2"
+          "      }"
+          "    });"
+          "    "
+          "    console.log('Added " + std::to_string(latitude.size()) + " circles to map');";
+      }
+
+      js +=
+        "  });"
         "}";
 
       app->doJavaScript(js);
     }
-
-
   } //WMapbox
 }// namespace Wt
