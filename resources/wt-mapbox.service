@@ -4,11 +4,10 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-ExecStart=/home/pvn/services/wt.extra/build/wt.extra/map --http-address=0.0.0.0 --http-port=9000 \
+ExecStart=/home/pvn/services/wt.extra/build/wt.extra/mapbox --http-address=0.0.0.0 --http-port=9000 \
 --docroot=/home/pvn/services/wt.extra/build/wt.extra/ \
--d /home/pvn/services/wt.extra/build/wt.extra/dc_311-2016.csv.s0311.csv \
--g /home/pvn/services/wt.extra/build/wt.extra/ward-2012.geojson \
 -c /home/pvn/services/wt.extra/install/wt/etc/wt/wt_config_leaflet.xml 
+WorkingDirectory=/home/pvn/services/wt.extra/build/wt.extra/
 User=pvn
 
 [Install]
