@@ -21,17 +21,17 @@ namespace Wt
     {
       latitude.clear();
       longitude.clear();
+      geojson.clear();
     }
 
-    void set_data(const std::vector<std::string>& latitudes, const std::vector<std::string>& longitudes);
+    std::string geojson;
+    std::vector<std::string> latitude;
+    std::vector<std::string> longitude;
 
   protected:
     Impl* impl;
     virtual void render(WFlags<RenderFlag> flags) override;
 
-  private:
-    std::vector<std::string> latitude;
-    std::vector<std::string> longitude;
   };
 }
 

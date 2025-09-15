@@ -1,6 +1,32 @@
 #include "WMapbox.hh"
 #include "web/Configuration.h"
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//to_hex
+//convert int to hex string, apply zero padding
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::string to_hex(int n)
+{
+  std::stringstream ss;
+  ss << std::hex << n;
+  std::string str(ss.str());
+  return str.size() == 1 ? "0" + str : str;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//rgb_to_hex
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::string rgb_to_hex(int r, int g, int b)
+{
+  std::string str("#");
+  str += to_hex(r);
+  str += to_hex(g);
+  str += to_hex(b);
+  return str;
+}
+
 namespace Wt
 {
   /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,17 +66,6 @@ namespace Wt
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
-  // set_data
-  /////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  void WMapbox::set_data(const std::vector<std::string>& latitudes, const std::vector<std::string>& longitudes)
-  {
-    latitude = latitudes;
-    longitude = longitudes;
-    std::cout << "Set circle data: " << latitudes.size() << " points" << std::endl;
-  }
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////////
   // render
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -75,11 +90,64 @@ namespace Wt
         "  " + jsRef() + ".mapboxMap = map;"
 
         "  map.on('load', function() {"
-        "    console.log('Map loaded, adding circles...');"
+        "    console.log('Map loaded, adding data...');"
         "    ";
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
-      // GeoJSON source for circles
+      // GeoJSON polygons with different ward colors
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      if (!geojson.empty())
+      {
+        std::vector<std::string> ward_color =
+        { rgb_to_hex(128, 128, 0), //olive
+          rgb_to_hex(255, 255, 0), //yellow 
+          rgb_to_hex(0, 128, 0), //green
+          rgb_to_hex(0, 255, 0), //lime
+          rgb_to_hex(0, 128, 128), //teal
+          rgb_to_hex(0, 255, 255), //aqua
+          rgb_to_hex(0, 0, 255), //blue
+          rgb_to_hex(128, 0, 128) //purple
+        };
+
+        js +=
+          "    map.addSource('polygons', {"
+          "      'type': 'geojson',"
+          "      'data': " + geojson +
+          "    });"
+          "    "
+
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+          // add polygon fill layer 
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+          "    map.addLayer({"
+          "      'id': 'polygon-fill',"
+          "      'type': 'fill',"
+          "      'source': 'polygons',"
+          "      'paint': {"
+          "        'fill-color': ["
+          "          'match',"
+          "          ['get', 'WARD'],"
+          "          1, '" + ward_color[0] + "',"
+          "          2, '" + ward_color[1] + "',"
+          "          3, '" + ward_color[2] + "',"
+          "          4, '" + ward_color[3] + "',"
+          "          5, '" + ward_color[4] + "',"
+          "          6, '" + ward_color[5] + "',"
+          "          7, '" + ward_color[6] + "',"
+          "          8, '" + ward_color[7] + "',"
+          "          '#888888'" //match expression requires a default fallback value at the end
+          "        ],"
+          "        'fill-opacity': 0.2"
+          "      }"
+          "    });"
+          "    "
+          ;
+      }
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // GeoJSON source for circles (on top of polygons)
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
       if (!latitude.empty() && !longitude.empty())
@@ -132,12 +200,12 @@ namespace Wt
           "      'type': 'circle',"
           "      'source': 'circle-points',"
           "      'paint': {"
-          "        'circle-radius': 8,"
+          "        'circle-radius': 4, "
           "        'circle-color': ['get', 'color'],"
-          "        'circle-opacity': 0.2,"
-          "        'circle-stroke-width': 0,"
-          "        'circle-stroke-color': ['get', 'color'],"
-          "        'circle-stroke-opacity': 0.2"
+          "        'circle-opacity': 0.6,"
+          "        'circle-stroke-width': 1,"
+          "        'circle-stroke-color': '#FFFFFF',"
+          "        'circle-stroke-opacity': 1.0"
           "      }"
           "    });"
           "    "
@@ -150,5 +218,7 @@ namespace Wt
 
       app->doJavaScript(js);
     }
+
+
   } //WMapbox
 }// namespace Wt

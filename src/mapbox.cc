@@ -11,8 +11,11 @@
 #include <iostream>
 
 csv_parser* parser = nullptr;
+std::string geojson;
+
 int load_dc311_simple();
 int load_dc311_full();
+int load_geojson();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ApplicationMap
@@ -40,9 +43,15 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
   map = root()->addWidget(std::make_unique<Wt::WMapbox>());
   map->resize(1920, 1080);
  
-  if (parser && !parser->latitude.empty()) 
+  if (!geojson.empty()) 
   {
-    map->set_data(parser->latitude, parser->longitude);
+    map->geojson = geojson;
+  }
+
+  if (parser && !parser->latitude.empty())
+  {
+    map->latitude = parser->latitude;
+    map->longitude = parser->longitude;
   }
 }
 
@@ -69,10 +78,14 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
-  std::cout << "Loading CSV data ..." << std::endl;
+  std::cout << "Loading data files..." << std::endl;
+
+  if (load_geojson() < 0)
+  {  
+  }
 
   if (load_dc311_simple() < 0)
-  {
+  { 
   }
 
   int result = Wt::WRun(argc, argv, &create_application);
@@ -80,6 +93,38 @@ int main(int argc, char* argv[])
   delete parser;
   parser = nullptr;
   return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// load_geojson
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_geojson()
+{
+  std::ifstream file("ward-2012.geojson");
+  if (!file.is_open())
+  {
+    return -1;
+  }
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  std::string line;
+  geojson.clear();
+  while (std::getline(file, line))
+  {
+    geojson += line;
+  }
+  file.close();
+
+  if (!geojson.empty())
+  {
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    return 1;
+  }
+
+  return -1;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,7 +143,7 @@ int load_dc311_full()
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
     std::cout << "File loaded in: " << duration.count() << " ms" << std::endl;
-    std::cout << "Combined rows: " << parser->data.size() << std::endl;
+    std::cout << "Rows: " << parser->data.size() << std::endl;
     std::cout << "Columns: " << parser->headers.size() << std::endl;
 
     std::cout << "Headers:" << std::endl;
