@@ -49,17 +49,15 @@ set(src ${src} src/mapbox/WMapbox.hh)
 set(src ${src} src/mapbox.cc)
 set(src ${src} src/parser.cc)
 set(src ${src} src/parser.hh)
-set(src ${src} src/splitter.hh)
-set(src ${src} src/splitter.cc)
-add_executable(map ${src})
-
+add_executable(mapbox ${src})
 add_executable(leaflet src/leaflet.cc)
+add_executable(splitter src/splitter.cc)
 
 if (MSVC)
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT map)
-  set_property(TARGET map PROPERTY 
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT mapbox)
+  set_property(TARGET mapbox PROPERTY 
     VS_DEBUGGER_COMMAND_ARGUMENTS "--http-address=0.0.0.0 --http-port=8080  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson")
-  set_property(TARGET map PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+  set_property(TARGET mapbox PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
 
 #//////////////////////////
@@ -130,7 +128,7 @@ endif()
 #//////////////////////////
 
 message(STATUS "lib_dep: " ${lib_dep})
-target_link_libraries (map ${lib_dep})
+target_link_libraries (mapbox ${lib_dep})
 target_link_libraries (leaflet ${lib_dep})
 
 #//////////////////////////
