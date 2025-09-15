@@ -1,6 +1,6 @@
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
-#include <WMapbox.hh>
+#include "WMapbox.hh"
 
 #include <fstream>
 #include <sstream>

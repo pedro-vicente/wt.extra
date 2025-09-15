@@ -52,6 +52,7 @@ set(src ${src} src/parser.hh)
 add_executable(mapbox ${src})
 add_executable(leaflet src/leaflet.cc)
 add_executable(splitter src/splitter.cc)
+add_executable(parser src/parse.cc src/parser.cc src/parser.hh)
 
 if (MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT mapbox)
@@ -142,6 +143,8 @@ message(STATUS "Copying data files to: ${CMAKE_BINARY_DIR}")
 set(DATA_FILES
   "resources/dc_311-2016.csv.s0311.csv"
   "resources/ward-2012.geojson"
+  "resources/311_city_service_requests_2024_part1.csv"
+  "resources/311_city_service_requests_2024_part2.csv"
 )
 
 message(STATUS "Copying data files to: ${CMAKE_BINARY_DIR}")
