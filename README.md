@@ -30,6 +30,8 @@ http://nostro.cloud:9000/
 
 # DC 311 Mapping
 
+![image](https://github.com/user-attachments/assets/ca689684-3ce3-4073-b51e-dae85645095c)
+
 This project creates an interactive web map visualization of Washington DC's 311 service request data using the Wt C++ web framework and Mapbox mapping technology.
 
 ## Features
