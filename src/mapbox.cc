@@ -11,7 +11,7 @@
 #include <iostream>
 
 csv_parser* parser = nullptr;
-std::string geojson;
+std::string geojson_wards;
 
 int load_dc311_simple();
 int load_dc311_full();
@@ -43,9 +43,9 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
   map = root()->addWidget(std::make_unique<Wt::WMapbox>());
   map->resize(1920, 1080);
  
-  if (!geojson.empty()) 
+  if (!geojson_wards.empty())
   {
-    map->geojson = geojson;
+    map->geojson = geojson_wards;
   }
 
   if (parser && !parser->latitude.empty())
@@ -94,97 +94,3 @@ int main(int argc, char* argv[])
   parser = nullptr;
   return result;
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// load_geojson
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int load_geojson()
-{
-  std::ifstream file("ward-2012.geojson");
-  if (!file.is_open())
-  {
-    return -1;
-  }
-
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  std::string line;
-  geojson.clear();
-  while (std::getline(file, line))
-  {
-    geojson += line;
-  }
-  file.close();
-
-  if (!geojson.empty())
-  {
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-    return 1;
-  }
-
-  return -1;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// load_dc311_full
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int load_dc311_full()
-{
-  parser = new csv_parser("311_city_service_requests_2024_part1.csv", "311_city_service_requests_2024_part2.csv");
-
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  if (parser->load_file())
-  {
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-    std::cout << "File loaded in: " << duration.count() << " ms" << std::endl;
-    std::cout << "Rows: " << parser->data.size() << std::endl;
-    std::cout << "Columns: " << parser->headers.size() << std::endl;
-
-    std::cout << "Headers:" << std::endl;
-    for (size_t idx = 0; idx < parser->headers.size(); ++idx)
-    {
-      std::cout << "  " << parser->headers[idx] << std::endl;
-    }
-    return 1;
-  }
-
-  return -1;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// load_dc311_simple
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int load_dc311_simple()
-{
-  parser = new csv_parser("dc_311-2016.csv.s0311.csv");
-
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  if (parser->load_simple_file())
-  {
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-    std::cout << "File loaded in: " << duration.count() << " ms" << std::endl;
-    std::cout << "Rows: " << parser->latitude.size() << std::endl;
-    std::cout << "Columns: " << parser->headers.size() << std::endl;
-
-    std::cout << "Headers:" << std::endl;
-    for (size_t idx = 0; idx < parser->headers.size(); ++idx)
-    {
-      std::cout << "  " << parser->headers[idx] << std::endl;
-    }
-    return 1;
-  }
-
-  return -1;
-}
-
-
