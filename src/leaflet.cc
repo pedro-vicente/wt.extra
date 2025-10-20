@@ -1,16 +1,11 @@
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
-#include <Wt/WLeafletMap.h>
-#include <Wt/WPushButton.h>
-#include <Wt/WServer.h>
-#include <Wt/WSpinBox.h>
-#include <Wt/Json/Object.h>
-
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <string>
 #include <iostream>
+#include "WLeaflet.hh"
 #include "parser.hh"
 
 csv_parser* parser = nullptr;
@@ -30,8 +25,7 @@ public:
   virtual ~ApplicationMap();
 
 private:
-  Wt::WLeafletMap* map;
-  void addCirclesFromCSV();
+  Wt::WLeaflet* map;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,52 +34,10 @@ private:
 
 ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
   : WApplication(env),
-  map(root()->addNew<Wt::WLeafletMap>())
+  map(root()->addNew<Wt::WLeaflet>())
 {
   map->resize(1920, 1080);
-  map->setZoomLevel(12);
 
-  Wt::Json::Object options;
-  options["maxZoom"] = 19;
-  options["minZoom"] = 10;
-  options["attribution"] = "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>";
-  map->addTileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", options);
-
-  if (!geojson_wards.empty())
-  {
-    std::string js = "setTimeout(function() {";
-    js += "L.geoJSON(" + geojson_wards + ", {";
-    js += "style: {";
-    js += "color: '#3388ff',";
-    js += "weight: 2,";
-    js += "opacity: 0.65,";
-    js += "fillOpacity: 0.1";
-    js += "}";
-    js += "}).addTo(" + map->mapJsRef() + ");";
-    js += "}, 100);";
-
-    map->doJavaScript(js);
-  }
-
-  if (!parser->latitude.empty())
-  {
-    std::string js = "setTimeout(function() {";
-    for (size_t idx = 0; idx < parser->latitude.size(); ++idx)
-    {
-      std::string lat = parser->latitude[idx];
-      std::string lon = parser->longitude[idx];
-      js += "L.circle([" + lat + ", " + lon + "], {";
-      js += "stroke: false,";
-      js += "fillColor: '#ff6b6b',";
-      js += "fillOpacity: 0.5,";
-      js += "radius: 50";
-      js += "}).addTo(" + map->mapJsRef() + ");";
-    }
-    js += "}, 200);";
-    map->doJavaScript(js);
-  }
-
-  map->panTo(Wt::WLeafletMap::Coordinate(38.85, -76.95));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

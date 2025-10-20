@@ -42,6 +42,7 @@ endif()
 #//////////////////////////
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/mapbox")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/leaflet")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/wt-4.12.0/src")
 
 set(src ${src})
@@ -50,7 +51,7 @@ set(src ${src} src/parser.cc)
 set(src ${src} src/parser.hh)
 
 add_executable(mapbox src/mapbox/WMapbox.cc src/mapbox/WMapbox.hh src/mapbox.cc ${src})
-add_executable(leaflet src/leaflet.cc  ${src})
+add_executable(leaflet src/leaflet.cc src/leaflet/WLeaflet.cc src/leaflet/WLeaflet.hh ${src})
 add_executable(splitter src/splitter.cc)
 add_executable(parser src/parse.cc src/parser.cc src/parser.hh)
 
