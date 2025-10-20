@@ -33,11 +33,23 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
-  : WApplication(env),
-  map(root()->addNew<Wt::WLeaflet>())
+  : WApplication(env), map(nullptr)
 {
+  setTitle("DC 311 Service Requests Map");
+
+  map = root()->addWidget(std::make_unique<Wt::WLeaflet>());
   map->resize(1920, 1080);
 
+  if (!geojson_wards.empty())
+  {
+    map->geojson = geojson_wards;
+  }
+
+  if (parser && !parser->latitude.empty())
+  {
+    map->latitude = parser->latitude;
+    map->longitude = parser->longitude;
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

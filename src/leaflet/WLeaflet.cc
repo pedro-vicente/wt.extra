@@ -28,6 +28,17 @@ std::string rgb_to_hex(int r, int g, int b)
   return str;
 }
 
+std::vector<std::string> ward_color =
+{ rgb_to_hex(128, 128, 0), //olive
+  rgb_to_hex(255, 255, 0), //yellow 
+  rgb_to_hex(0, 128, 0), //green
+  rgb_to_hex(0, 255, 0), //lime
+  rgb_to_hex(0, 128, 128), //teal
+  rgb_to_hex(0, 255, 255), //aqua
+  rgb_to_hex(0, 0, 255), //blue
+  rgb_to_hex(128, 0, 128) //purple
+};
+
 namespace Wt
 {
   /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,12 +88,57 @@ namespace Wt
     if (flags.test(RenderFlag::Full))
     {
       std::stringstream js;
-      js << "const map = L.map(" << jsRef() << ").setView([38.85, -76.95], 12);"
+      js << "var map = L.map(" << jsRef() << ", {"
+        << "center: [38.85, -76.95],"
+        << "zoom: 12"
+        << "});"
         << "L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {"
         << "maxZoom: 19,"
         << "minZoom: 10,"
-        << "attribution: '© OpenStreetMap contributors'"
+        << "attribution: '&copy OpenStreetMap contributors'"
         << "}).addTo(map);";
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // geoJSON with Wards
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      js << "var ward_color = [";
+      for (size_t idx = 0; idx < ward_color.size(); ++idx)
+      {
+        js << "'" << ward_color[idx] << "'";
+        if (idx < ward_color.size() - 1) js << ",";
+      }
+      js << "];";
+
+      js << "L.geoJSON(" << geojson << ", {"
+        << "style: function (feature) {"
+        << "  var ward_num = feature.properties.WARD || 1;"
+        << "    return {"
+        << "      color: ward_color[ward_num - 1],"
+        << "      stroke: false"
+        << "     };"
+        << "  }"
+        << "}).addTo(map);";
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // incidents as circles
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
+      {
+        std::string lat = latitude[idx];
+        std::string lon = longitude[idx];
+
+        if (!lat.empty() && !lon.empty())
+        {
+          js << "L.circle([" << lat << ", " << lon << "], {"
+            << "stroke: false,"
+            << "color: '#ff0000',"
+            << "radius: 100"
+            << "}).addTo(map);";
+        }
+      }
+
 
       WApplication* app = WApplication::instance();
       app->doJavaScript(js.str());
