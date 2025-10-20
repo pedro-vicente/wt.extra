@@ -85,7 +85,9 @@ namespace Wt
         "    container: " + jsRef() + ","
         "    center: [-76.90, 38.85]," //longitude, latitude
         "    style: '" + style + "',"
-        "    zoom: 11"
+        "    zoom: 11,"
+        "    maxZoom: 16,"
+        "    minZoom:9"
         "  });"
         "  " + jsRef() + ".mapboxMap = map;"
 

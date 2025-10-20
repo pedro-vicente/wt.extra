@@ -11,8 +11,13 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include "parser.hh"
 
-int read_csv(const std::string& path);
+csv_parser* parser = nullptr;
+std::string geojson_wards;
+
+int load_dc311_simple();
+int load_geojson();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ApplicationMap
@@ -26,6 +31,7 @@ public:
 
 private:
   Wt::WLeafletMap* map;
+  void addCirclesFromCSV();
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,11 +47,45 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 
   Wt::Json::Object options;
   options["maxZoom"] = 19;
+  options["minZoom"] = 10;
   options["attribution"] = "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>";
   map->addTileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", options);
 
-  map->panTo(Wt::WLeafletMap::Coordinate(38.9072, -77.0369));
+  if (!geojson_wards.empty())
+  {
+    std::string js = "setTimeout(function() {";
+    js += "L.geoJSON(" + geojson_wards + ", {";
+    js += "style: {";
+    js += "color: '#3388ff',";
+    js += "weight: 2,";
+    js += "opacity: 0.65,";
+    js += "fillOpacity: 0.1";
+    js += "}";
+    js += "}).addTo(" + map->mapJsRef() + ");";
+    js += "}, 100);";
 
+    map->doJavaScript(js);
+  }
+
+  if (!parser->latitude.empty())
+  {
+    std::string js = "setTimeout(function() {";
+    for (size_t idx = 0; idx < parser->latitude.size(); ++idx)
+    {
+      std::string lat = parser->latitude[idx];
+      std::string lon = parser->longitude[idx];
+      js += "L.circle([" + lat + ", " + lon + "], {";
+      js += "stroke: false,";
+      js += "fillColor: '#ff6b6b',";
+      js += "fillOpacity: 0.5,";
+      js += "radius: 50";
+      js += "}).addTo(" + map->mapJsRef() + ");";
+    }
+    js += "}, 200);";
+    map->doJavaScript(js);
+  }
+
+  map->panTo(Wt::WLeafletMap::Coordinate(38.85, -76.95));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,35 +111,15 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
-  if (read_csv("dc_311-2016.csv.s0311.csv") < 0)
+  std::cout << "Loading data files..." << std::endl;
+
+  if (load_geojson() < 0)
   {
-    
   }
 
+  if (load_dc311_simple() < 0)
+  {
+  }
 
   return Wt::WRun(argc, argv, &create_application);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// read_csv
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int read_csv(const std::string& path)
-{
-  std::ifstream file(path);
-  if (!file.is_open())
-  {
-    return -1;
-  }
-
-  std::string line;
-  int nbr_lines = 0;
-  while (std::getline(file, line))
-  {
-    nbr_lines++;
-  }
-
-  file.close();
-
-  return nbr_lines;
 }

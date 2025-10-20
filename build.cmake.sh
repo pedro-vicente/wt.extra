@@ -39,8 +39,8 @@ fi
 
 if [[ "$OSTYPE" != "msys" ]]; then
 echo $(pwd)
-echo "open browser http://localhost:9001"
-./mapbox --http-address=0.0.0.0 --http-port=9001  --docroot=. 
+echo "open browser http://localhost:8080"
+./mapbox --http-address=0.0.0.0 --http-port=8080  --docroot=. 
 fi
 
 popd

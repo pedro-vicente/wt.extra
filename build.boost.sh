@@ -38,8 +38,3 @@ fi
 popd
 popd
 
-#The Boost C++ Libraries were successfully built!
-#The following directory should be added to compiler include paths:
-#/home/pvn/git/nostro_web/boost_1_88_0
-#The following directory should be added to linker library paths:
-#/home/pvn/git/nostro_web/boost_1_88_0/stage/lib

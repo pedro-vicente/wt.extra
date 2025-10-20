@@ -43,23 +43,24 @@ endif()
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/mapbox")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/wt-4.12.0/src")
+
 set(src ${src})
-set(src ${src} src/mapbox/WMapbox.cc)
-set(src ${src} src/mapbox/WMapbox.hh)
-set(src ${src} src/mapbox.cc)
 set(src ${src} src/requests.cc)
 set(src ${src} src/parser.cc)
 set(src ${src} src/parser.hh)
-add_executable(mapbox ${src})
-add_executable(leaflet src/leaflet.cc)
+
+add_executable(mapbox src/mapbox/WMapbox.cc src/mapbox/WMapbox.hh src/mapbox.cc ${src})
+add_executable(leaflet src/leaflet.cc  ${src})
 add_executable(splitter src/splitter.cc)
 add_executable(parser src/parse.cc src/parser.cc src/parser.hh)
 
 if (MSVC)
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT mapbox)
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT leaflet)
+  set_property(TARGET leaflet PROPERTY 
+    VS_DEBUGGER_COMMAND_ARGUMENTS "--http-address=0.0.0.0 --http-port=8080  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson")
+  set_property(TARGET leaflet PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
   set_property(TARGET mapbox PROPERTY 
     VS_DEBUGGER_COMMAND_ARGUMENTS "--http-address=0.0.0.0 --http-port=8080  --docroot=. -d dc_311-2016.csv.s0311.csv -g ward-2012.geojson")
-  set_property(TARGET mapbox PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
 
 #//////////////////////////
