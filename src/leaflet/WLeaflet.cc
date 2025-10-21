@@ -88,14 +88,22 @@ namespace Wt
     if (flags.test(RenderFlag::Full))
     {
       std::stringstream js;
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Create map with Canvas renderer
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
       js << "var map = L.map(" << jsRef() << ", {"
-        << "center: [38.85, -76.95],"
-        << "zoom: 12"
+        << "  center: [38.85, -76.95],"
+        << "  zoom: 12,"
+        << "  preferCanvas: true,"
+        << "  renderer: L.canvas({ padding: 0.5 })"
         << "});"
+
         << "L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {"
-        << "maxZoom: 19,"
-        << "minZoom: 10,"
-        << "attribution: '&copy OpenStreetMap contributors'"
+        << "  maxZoom: 19,"
+        << "  minZoom: 10,"
+        << "  attribution: '&copy OpenStreetMap contributors'"
         << "}).addTo(map);";
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,30 +123,62 @@ namespace Wt
         << "  var ward_num = feature.properties.WARD || 1;"
         << "    return {"
         << "      color: ward_color[ward_num - 1],"
-        << "      stroke: false"
+        << "      fillColor: ward_color[ward_num - 1],"
+        << "      fillOpacity: 0.2,"
+        << "      stroke: false,"
+        << "      weight: 0"
         << "     };"
-        << "  }"
+        << "  },"
+        << "  renderer: L.canvas()"
         << "}).addTo(map);";
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
-      // incidents as circles
+      // incidents as circles with GeoJSON FeatureCollection
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-      for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
+      if (!latitude.empty() && !longitude.empty())
       {
-        std::string lat = latitude[idx];
-        std::string lon = longitude[idx];
+        js << "var circles = [];";
 
-        if (!lat.empty() && !lon.empty())
+        for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
         {
-          js << "L.circle([" << lat << ", " << lon << "], {"
-            << "stroke: false,"
-            << "color: '#ff0000',"
-            << "radius: 100"
-            << "}).addTo(map);";
-        }
-      }
+          std::string lat = latitude[idx];
+          std::string lon = longitude[idx];
 
+          if (!lat.empty() && !lon.empty())
+          {
+            js << "circles.push({"
+              << "  'type': 'Feature',"
+              << "  'geometry': {"
+              << "    'type': 'Point',"
+              << "    'coordinates': [" << lon << ", " << lat << "]"
+              << "  },"
+              << "  'properties': {}"
+              << "});";
+          }
+        }
+
+        js << "var data = {"
+          << "  'type': 'FeatureCollection',"
+          << "  'features': circles"
+          << "};"
+
+          << "var style = {"
+          << "  radius: 40,"
+          << "  color: '#ff0000',"
+          << "  fillOpacity: 0.4,"
+          << "  stroke: false"
+          << "};"
+
+          << "var options = {"
+          << "  pointToLayer: function(feature, latlng) {"
+          << "    return L.circle(latlng, style);"
+          << "  },"
+          << "  renderer: L.canvas()"
+          << "};"
+
+          << "L.geoJSON(data, options).addTo(map);";
+      }
 
       WApplication* app = WApplication::instance();
       app->doJavaScript(js.str());
