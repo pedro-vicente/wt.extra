@@ -1,4 +1,4 @@
-#include "WLeaflet.hh"
+#include "WMapLibre.hh"
 #include "web/Configuration.h"
 #include <sstream>
 
@@ -42,46 +42,46 @@ std::vector<std::string> ward_color =
 namespace Wt
 {
   /////////////////////////////////////////////////////////////////////////////////////////////////////
-  // WLeaflet::Impl
+  // WMapLibre::Impl
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  class WLeaflet::Impl : public WWebWidget
+  class WMapLibre::Impl : public WWebWidget
   {
   public:
     Impl();
     virtual DomElementType domElementType() const override;
   };
 
-  WLeaflet::Impl::Impl()
+  WMapLibre::Impl::Impl()
   {
     setInline(false);
   }
 
-  DomElementType WLeaflet::Impl::domElementType() const
+  DomElementType WMapLibre::Impl::domElementType() const
   {
     return DomElementType::DIV;
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
-  // WLeaflet
+  // WMapLibre
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  WLeaflet::WLeaflet()
+  WMapLibre::WMapLibre()
   {
     setImplementation(std::unique_ptr<Impl>(impl = new Impl()));
     WApplication* app = WApplication::instance();
     this->addCssRule("body", "margin: 0; padding: 0;");
     this->addCssRule("#" + id(), "position: absolute; top: 0; bottom: 0; width: 100%;");
-    app->useStyleSheet("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
-    const std::string library = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    app->require(library, "leaflet");
+    app->useStyleSheet("https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css");
+    const std::string library = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+    app->require(library, "maplibre");
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // render
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void WLeaflet::render(WFlags<RenderFlag> flags)
+  void WMapLibre::render(WFlags<RenderFlag> flags)
   {
     WCompositeWidget::render(flags);
 
@@ -93,18 +93,14 @@ namespace Wt
       // Create map with Canvas renderer
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-      js << "var map = L.map(" << jsRef() << ", {\n"
-        << "  center: [38.90, -77.00],\n"
-        << "  zoom: 13,\n"
-        << "  preferCanvas: true,\n"
-        << "  renderer: L.canvas({ padding: 0.5 })\n"
+      js << "const map = new maplibregl.Map({\n"
+        << "  container: " << jsRef() << ",\n"
+        << "  style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',\n"
+        << "  center: [-77.0369, 38.9072],\n"
+        << "  zoom: 12\n"
         << "});\n"
 
-        << "L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {\n"
-        << "  maxZoom: 19,\n"
-        << "  minZoom: 10,\n"
-        << "  attribution: '&copy OpenStreetMap contributors'\n"
-        << "}).addTo(map);";
+        << "map.addControl(new maplibregl.NavigationControl());\n";
 
 #ifdef _WIN32
       OutputDebugStringA(js.str().c_str());
@@ -114,27 +110,46 @@ namespace Wt
       // geoJSON with Wards
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
+      js << "map.on('load', function() {\n";
+
       js << "var ward_color = [";
       for (size_t idx = 0; idx < ward_color.size(); ++idx)
       {
         js << "'" << ward_color[idx] << "'";
         if (idx < ward_color.size() - 1) js << ",";
       }
-      js << "];";
+      js << "];\n";
 
-      js << "L.geoJSON(" << geojson << ", {"
-        << "style: function (feature) {"
-        << "  var ward_num = feature.properties.WARD || 1;"
-        << "    return {"
-        << "      color: ward_color[ward_num - 1],"
-        << "      fillColor: ward_color[ward_num - 1],"
-        << "      fillOpacity: 0.2,"
-        << "      stroke: false,"
-        << "      weight: 0"
-        << "     };"
-        << "  },"
-        << "  renderer: L.canvas()"
-        << "}).addTo(map);";
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // add ward GeoJSON source and layer
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      js << "map.addSource('wards', {\n"
+        << "  'type': 'geojson',\n"
+        << "  'data': " << geojson << "\n"
+        << "});\n"
+
+        << "map.addLayer({\n"
+        << "  'id': 'wards-fill',\n"
+        << "  'type': 'fill',\n"
+        << "  'source': 'wards',\n"
+        << "  'paint': {\n"
+        << "    'fill-color': ['get', ['to-string', ['get', 'WARD']], ['literal', {\n";
+
+      for (size_t idx = 0; idx < ward_color.size(); ++idx)
+      {
+        js << "      '" << (idx + 1) << "': '" << ward_color[idx] << "'";
+        if (idx < ward_color.size() - 1) js << ",\n";
+      }
+
+      js << "\n    }]],\n"
+        << "    'fill-opacity': 0.2\n"
+        << "  }\n"
+        << "});\n";
+
+#ifdef _WIN32
+      OutputDebugStringA(js.str().c_str());
+#endif
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
       // incidents as circles with GeoJSON FeatureCollection
@@ -142,7 +157,7 @@ namespace Wt
 
       if (!latitude.empty() && !longitude.empty())
       {
-        js << "var circles = [];";
+        js << "var circles = [];\n";
 
         for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
         {
@@ -152,42 +167,56 @@ namespace Wt
           if (!lat.empty() && !lon.empty())
           {
             js << "circles.push({"
-              << "  'type': 'Feature',"
-              << "  'geometry': {"
-              << "    'type': 'Point',"
-              << "    'coordinates': [" << lon << ", " << lat << "]"
-              << "  },"
-              << "  'properties': {}"
-              << "});";
+              << "'type': 'Feature',"
+              << "'geometry': {"
+              << "'type': 'Point',"
+              << "'coordinates': [" << lon << ", " << lat << "]"
+              << "},"
+              << "'properties': {}"
+              << "});\n";
           }
         }
 
-        js << "var data = {"
-          << "  'type': 'FeatureCollection',"
-          << "  'features': circles"
-          << "};"
+        js << "map.addSource('incidents', {\n"
+          << "  'type': 'geojson',\n"
+          << "  'data': {\n"
+          << "    'type': 'FeatureCollection',\n"
+          << "    'features': circles\n"
+          << "  }\n"
+          << "});\n"
 
-          << "var style = {"
-          << "  radius: 40,"
-          << "  color: '#ff0000',"
-          << "  fillOpacity: 0.4,"
-          << "  stroke: false"
-          << "};"
-
-          << "var options = {"
-          << "  pointToLayer: function(feature, latlng) {"
-          << "    return L.circle(latlng, style);"
-          << "  },"
-          << "  renderer: L.canvas()"
-          << "};"
-
-          << "L.geoJSON(data, options).addTo(map);";
+          << "map.addLayer({\n"
+          << "  'id': 'incidents-circles',\n"
+          << "  'type': 'circle',\n"
+          << "  'source': 'incidents',\n"
+          << "  'paint': {\n"
+          << "    'circle-radius': [\n"
+          << "      'interpolate', ['linear'], ['zoom'],\n"
+          << "      10, 2,\n"
+          << "      12, 4,\n"
+          << "      14, 6,\n"
+          << "      16, 8\n"
+          << "    ],\n"
+          << "    'circle-color': '#ff0000',\n"
+          << "    'circle-opacity': 0.4\n"
+          << "  }\n"
+          << "});\n";
       }
+
+      //close map.on('load')
+      js << "});\n";
+
+#ifdef _WIN32
+      if (latitude.empty())
+      {
+        OutputDebugStringA(js.str().c_str());
+      }
+#endif
 
       WApplication* app = WApplication::instance();
       app->doJavaScript(js.str());
     }
 
 
-  } //WLeaflet
+  } //WMapLibre
 }// namespace Wt

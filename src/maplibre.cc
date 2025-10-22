@@ -10,7 +10,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include "WLeaflet.hh"
+#include "WMapLibre.hh"
 #include "parser.hh"
 
 csv_parser* parser = nullptr;
@@ -43,7 +43,7 @@ public:
   virtual ~ApplicationMap();
 
 private:
-  Wt::WLeaflet* map;
+  Wt::WMapLibre* map;
   Wt::WContainerWidget* map_container;
   Wt::WCheckBox* rodent_checkbox;
   void onCheckBoxChanged();
@@ -101,7 +101,7 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 
   std::unique_ptr<Wt::WContainerWidget> container_map = std::make_unique<Wt::WContainerWidget>();
   map_container = container_map.get();
-  map = container_map->addWidget(std::make_unique<Wt::WLeaflet>());
+  map = container_map->addWidget(std::make_unique<Wt::WMapLibre>());
   map->resize(Wt::WLength::Auto, Wt::WLength::Auto);
 
   if (!geojson_wards.empty())
@@ -126,7 +126,7 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 void ApplicationMap::onCheckBoxChanged()
 {
   map_container->clear();
-  std::unique_ptr<Wt::WLeaflet> m = std::make_unique<Wt::WLeaflet>();
+  std::unique_ptr<Wt::WMapLibre> m = std::make_unique<Wt::WMapLibre>();
   if (!geojson_wards.empty())
   {
     m->geojson = geojson_wards;
