@@ -10,7 +10,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include "WMapLibre.hh"
+#include "WMaplibre.hh"
 #include "parser.hh"
 
 csv_parser* parser = nullptr;

@@ -12,16 +12,15 @@ pushd wt.extra
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
-cmake ../.. \
+cmake ../.. --fresh \
     -DWT_INCLUDE="$path_wt/include" \
     -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
     -DBOOST_LIB_DIRS="$path_boost/lib" 
 cmake --build . --parallel 2
 
-
 elif [[ "$OSTYPE" == "darwin"* ]]; then
 
-cmake ../.. \
+cmake ../.. --fresh \
     -DWT_INCLUDE="$path_wt/include" \
     -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
     -DBOOST_LIB_DIRS="$path_boost/lib" 
@@ -40,7 +39,7 @@ fi
 if [[ "$OSTYPE" != "msys" ]]; then
 echo $(pwd)
 echo "open browser http://localhost:8080"
-./leaflet --http-address=0.0.0.0 --http-port=8080  --docroot=. 
+./maplibre --http-address=0.0.0.0 --http-port=8080  --docroot=. 
 fi
 
 popd

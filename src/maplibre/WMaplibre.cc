@@ -1,32 +1,9 @@
-#include "WMapLibre.hh"
+#include "WMaplibre.hh"
 #include "web/Configuration.h"
 #include <sstream>
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-//to_hex
-//convert int to hex string, apply zero padding
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::string to_hex(int n)
-{
-  std::stringstream ss;
-  ss << std::hex << n;
-  std::string str(ss.str());
-  return str.size() == 1 ? "0" + str : str;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-//rgb_to_hex
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::string rgb_to_hex(int r, int g, int b)
-{
-  std::string str("#");
-  str += to_hex(r);
-  str += to_hex(g);
-  str += to_hex(b);
-  return str;
-}
+std::string to_hex(int n);
+std::string rgb_to_hex(int r, int g, int b);
 
 std::vector<std::string> ward_color =
 { rgb_to_hex(128, 128, 0), //olive
