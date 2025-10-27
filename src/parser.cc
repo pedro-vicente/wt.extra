@@ -3,8 +3,7 @@
 #include <iostream>
 #include <Wt/Dbo/Dbo.h>
 #include <Wt/Dbo/backend/Sqlite3.h>
-#include "parser.hh"
-#include "service.hh" 
+#include "parser.hh" 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // csv_parser
@@ -68,13 +67,23 @@ int csv_parser::load_single_file(const std::string& file_path, int append_data)
       continue;
     }
 
+    // remove UTF-8 BOM (EF BB BF) from first line if present
+    if (first_line && line.length() >= 3)
+    {
+      if ((unsigned char)line[0] == 0xEF &&
+        (unsigned char)line[1] == 0xBB &&
+        (unsigned char)line[2] == 0xBF)
+      {
+        line = line.substr(3);
+      }
+    }
+
     std::vector<std::string> row = parse_line(line);
 
     if (first_line && has_headers)
     {
       if (!append_data)
       {
-        // first file, store headers
         headers = row;
       }
       else
@@ -168,6 +177,17 @@ int csv_parser::load_simple_file()
       continue;
     }
 
+    // remove UTF-8 BOM (EF BB BF) from first line if present
+    if (first_line && line.length() >= 3)
+    {
+      if ((unsigned char)line[0] == 0xEF &&
+        (unsigned char)line[1] == 0xBB &&
+        (unsigned char)line[2] == 0xBF)
+      {
+        line = line.substr(3);
+      }
+    }
+
     std::vector<std::string> row = parse_line(line);
 
     if (first_line && has_headers)
@@ -210,61 +230,108 @@ int csv_parser::write_to_database(const std::string& db_path)
 {
   try
   {
-    std::unique_ptr<Wt::Dbo::backend::Sqlite3> sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
-
+    auto sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
     Wt::Dbo::Session session;
     session.setConnection(std::move(sqlite3));
-    session.mapClass<ServiceRequest>("service_requests");
-    session.createTables();
+    
     Wt::Dbo::Transaction transaction(session);
 
-    for (std::vector<std::vector<std::string>>::const_iterator it = data.begin(); it != data.end(); ++it)
-    {
-      const std::vector<std::string>& row = *it;
-      std::unique_ptr<ServiceRequest> record = std::make_unique<ServiceRequest>();
-      record->X = row[0];
-      record->Y = row[1];
-      record->SERVICEREQUESTID = row[2];
-      record->STREETADDRESS = row[3];
-      record->CITY = row[4];
-      record->STATE = row[5];
-      record->ZIPCODE = row[6];
-      record->WARD = row[7];
-      record->SERVICECODE = row[8];
-      record->SERVICECODEDESCRIPTION = row[9];
-      record->SERVICETYPECODEDESCRIPTION = row[10];
-      record->ORGANIZATIONACRONYM = row[11];
-      record->SERVICECALLCOUNT = row[12];
-      record->ADDDATE = row[13];
-      record->RESOLUTIONDATE = row[14];
-      record->SERVICEDUEDATE = row[15];
-      record->SERVICEORDERDATE = row[16];
-      record->STATUS_CODE = row[17];
-      record->SERVICEORDERSTATUS = row[18];
-      record->INSPECTIONFLAG = row[19];
-      record->INSPECTIONDATE = row[20];
-      record->INSPECTORNAME = row[21];
-      record->PRIORITY = row[22];
-      record->DETAILS = row[23];
-      record->XCOORD = row[24];
-      record->YCOORD = row[25];
-      record->LATITUDE = row[26];
-      record->LONGITUDE = row[27];
-      record->MARADDRESSREPOSITORYID = row[28];
-      record->GIS_ID = row[29];
-      record->GLOBALID = row[30];
-      record->CREATED = row[31];
-      record->EDITED = row[32];
-      record->GDB_FROM_DATE = row[33];
-      record->GDB_TO_DATE = row[34];
-      record->GDB_ARCHIVE_OID = row[35];
-      record->SE_ANNO_CAD_DATA = row[36];
-      record->OBJECTID = row[37];
+    session.execute(
+      "CREATE TABLE IF NOT EXISTS service_requests ("
+      "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+      "  X TEXT,"
+      "  Y TEXT,"
+      "  SERVICEREQUESTID TEXT,"
+      "  STREETADDRESS TEXT,"
+      "  CITY TEXT,"
+      "  STATE TEXT,"
+      "  ZIPCODE TEXT,"
+      "  WARD TEXT,"
+      "  SERVICECODE TEXT,"
+      "  SERVICECODEDESCRIPTION TEXT,"
+      "  SERVICETYPECODEDESCRIPTION TEXT,"
+      "  ORGANIZATIONACRONYM TEXT,"
+      "  SERVICECALLCOUNT TEXT,"
+      "  ADDDATE TEXT,"
+      "  RESOLUTIONDATE TEXT,"
+      "  SERVICEDUEDATE TEXT,"
+      "  SERVICEORDERDATE TEXT,"
+      "  STATUS_CODE TEXT,"
+      "  SERVICEORDERSTATUS TEXT,"
+      "  INSPECTIONFLAG TEXT,"
+      "  INSPECTIONDATE TEXT,"
+      "  INSPECTORNAME TEXT,"
+      "  PRIORITY TEXT,"
+      "  DETAILS TEXT,"
+      "  XCOORD TEXT,"
+      "  YCOORD TEXT,"
+      "  LATITUDE TEXT,"
+      "  LONGITUDE TEXT,"
+      "  MARADDRESSREPOSITORYID TEXT,"
+      "  GIS_ID TEXT,"
+      "  GLOBALID TEXT,"
+      "  CREATED TEXT,"
+      "  EDITED TEXT,"
+      "  GDB_FROM_DATE TEXT,"
+      "  GDB_TO_DATE TEXT,"
+      "  GDB_ARCHIVE_OID TEXT,"
+      "  SE_ANNO_CAD_DATA TEXT,"
+      "  OBJECTID TEXT"
+      ")");
 
-      session.add(std::move(record));
+    session.execute("CREATE INDEX IF NOT EXISTS idx_service_type ON service_requests(SERVICECODEDESCRIPTION)");
+    session.execute("CREATE INDEX IF NOT EXISTS idx_ward ON service_requests(WARD)");
+    session.execute("CREATE INDEX IF NOT EXISTS idx_lat_lon ON service_requests(LATITUDE, LONGITUDE)");
+
+    int count = 0;
+    for (const auto& row : data)
+    {
+      std::vector<std::string> val;
+      for (const auto& value : row)
+      {
+        std::string escaped = value;
+        size_t pos = 0;
+        while ((pos = escaped.find("'", pos)) != std::string::npos)
+        {
+          escaped.replace(pos, 1, "''");
+          pos += 2;
+        }
+        val.push_back(escaped);
+      }
+
+      std::string sql =
+        "INSERT INTO service_requests ("
+        "  X, Y, SERVICEREQUESTID, STREETADDRESS, CITY, STATE, ZIPCODE, WARD,"
+        "  SERVICECODE, SERVICECODEDESCRIPTION, SERVICETYPECODEDESCRIPTION,"
+        "  ORGANIZATIONACRONYM, SERVICECALLCOUNT, ADDDATE, RESOLUTIONDATE,"
+        "  SERVICEDUEDATE, SERVICEORDERDATE, STATUS_CODE, SERVICEORDERSTATUS,"
+        "  INSPECTIONFLAG, INSPECTIONDATE, INSPECTORNAME, PRIORITY, DETAILS,"
+        "  XCOORD, YCOORD, LATITUDE, LONGITUDE, MARADDRESSREPOSITORYID,"
+        "  GIS_ID, GLOBALID, CREATED, EDITED, GDB_FROM_DATE, GDB_TO_DATE,"
+        "  GDB_ARCHIVE_OID, SE_ANNO_CAD_DATA, OBJECTID"
+        ") VALUES ("
+        "  '" + val[0] + "', '" + val[1] + "', '" + val[2] + "', "
+        "  '" + val[3] + "', '" + val[4] + "', '" + val[5] + "', "
+        "  '" + val[6] + "', '" + val[7] + "', '" + val[8] + "', "
+        "  '" + val[9] + "', '" + val[10] + "', '" + val[11] + "', "
+        "  '" + val[12] + "', '" + val[13] + "', '" + val[14] + "', "
+        "  '" + val[15] + "', '" + val[16] + "', '" + val[17] + "', "
+        "  '" + val[18] + "', '" + val[19] + "', '" + val[20] + "', "
+        "  '" + val[21] + "', '" + val[22] + "', '" + val[23] + "', "
+        "  '" + val[24] + "', '" + val[25] + "', '" + val[26] + "', "
+        "  '" + val[27] + "', '" + val[28] + "', '" + val[29] + "', "
+        "  '" + val[30] + "', '" + val[31] + "', '" + val[32] + "', "
+        "  '" + val[33] + "', '" + val[34] + "', '" + val[35] + "', "
+        "  '" + val[36] + "', '" + val[37] + "'"
+        ")";
+
+      session.execute(sql);
+
+      count++;
     }
 
     transaction.commit();
+
     return 1;
   }
   catch (const std::exception& e)
@@ -272,4 +339,88 @@ int csv_parser::write_to_database(const std::string& db_path)
     std::cerr << e.what() << std::endl;
     return -1;
   }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// load_service_requests
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_service_requests(
+  const std::string& db_path,
+  std::vector<std::string>& latitude,
+  std::vector<std::string>& longitude,
+  const std::string& service_filter)
+{
+  try
+  {
+    auto sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
+    Wt::Dbo::Session session;
+    session.setConnection(std::move(sqlite3));
+
+    latitude.clear();
+    longitude.clear();
+
+    Wt::Dbo::Transaction transaction(session);
+
+    std::string sql;
+
+    if (service_filter.empty())
+    {
+      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
+        "WHERE LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
+        "AND LATITUDE != '' AND LONGITUDE != ''";
+    }
+    else
+    {
+      std::string filter = service_filter;
+      size_t pos = 0;
+      while ((pos = filter.find("'", pos)) != std::string::npos)
+      {
+        filter.replace(pos, 1, "''");
+        pos += 2;
+      }
+
+      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
+        "WHERE SERVICECODEDESCRIPTION LIKE '%" + filter + "%' "
+        "AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
+        "AND LATITUDE != '' AND LONGITUDE != ''";
+    }
+
+    auto results = session.query<std::tuple<std::string, std::string>>(sql).resultList();
+
+    for (const auto& row : results)
+    {
+      std::string lat = std::get<0>(row);
+      std::string lon = std::get<1>(row);
+
+      try
+      {
+        double lat_d = std::stod(lat);
+        double lon_d = std::stod(lon);
+        latitude.push_back(lat);
+        longitude.push_back(lon);
+      }
+      catch (...)
+      {
+
+      }
+    }
+
+    transaction.commit();
+
+    return 1;
+  }
+  catch (const std::exception& e)
+  {
+    std::cerr << e.what() << std::endl;
+    return -1;
+  }
+}
+
+int load_service_requests(
+  const std::string& db_path,
+  std::vector<std::string>& latitude,
+  std::vector<std::string>& longitude)
+{
+  return load_service_requests(db_path, latitude, longitude, "");
 }

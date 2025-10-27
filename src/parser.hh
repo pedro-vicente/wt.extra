@@ -18,7 +18,7 @@ public:
   std::vector<std::string> parse_line(const std::string& line);
   std::string trim_whitespace(const std::string& str);
   int load_single_file(const std::string& file_path, int append_data = 0);
-  
+
 
   std::string file_path1;
   std::string file_path2;
@@ -43,7 +43,22 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
   int write_to_database(const std::string& db_path);
- 
+
 };
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// database 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_service_requests(
+  const std::string& db_path,
+  std::vector<std::string>& latitude,
+  std::vector<std::string>& longitude);
+
+int load_service_requests(
+  const std::string& db_path,
+  std::vector<std::string>& latitude,
+  std::vector<std::string>& longitude,
+  const std::string& service_filter);
 
 #endif
