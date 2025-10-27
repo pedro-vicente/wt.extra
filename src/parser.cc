@@ -1,4 +1,10 @@
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <Wt/Dbo/Dbo.h>
+#include <Wt/Dbo/backend/Sqlite3.h>
 #include "parser.hh"
+#include "service.hh" 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // csv_parser
@@ -194,4 +200,76 @@ int csv_parser::load_simple_file()
 
   file.close();
   return 1;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// write_to_database
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int csv_parser::write_to_database(const std::string& db_path)
+{
+  try
+  {
+    std::unique_ptr<Wt::Dbo::backend::Sqlite3> sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
+
+    Wt::Dbo::Session session;
+    session.setConnection(std::move(sqlite3));
+    session.mapClass<ServiceRequest>("service_requests");
+    session.createTables();
+    Wt::Dbo::Transaction transaction(session);
+
+    for (std::vector<std::vector<std::string>>::const_iterator it = data.begin(); it != data.end(); ++it)
+    {
+      const std::vector<std::string>& row = *it;
+      std::unique_ptr<ServiceRequest> record = std::make_unique<ServiceRequest>();
+      record->X = row[0];
+      record->Y = row[1];
+      record->SERVICEREQUESTID = row[2];
+      record->STREETADDRESS = row[3];
+      record->CITY = row[4];
+      record->STATE = row[5];
+      record->ZIPCODE = row[6];
+      record->WARD = row[7];
+      record->SERVICECODE = row[8];
+      record->SERVICECODEDESCRIPTION = row[9];
+      record->SERVICETYPECODEDESCRIPTION = row[10];
+      record->ORGANIZATIONACRONYM = row[11];
+      record->SERVICECALLCOUNT = row[12];
+      record->ADDDATE = row[13];
+      record->RESOLUTIONDATE = row[14];
+      record->SERVICEDUEDATE = row[15];
+      record->SERVICEORDERDATE = row[16];
+      record->STATUS_CODE = row[17];
+      record->SERVICEORDERSTATUS = row[18];
+      record->INSPECTIONFLAG = row[19];
+      record->INSPECTIONDATE = row[20];
+      record->INSPECTORNAME = row[21];
+      record->PRIORITY = row[22];
+      record->DETAILS = row[23];
+      record->XCOORD = row[24];
+      record->YCOORD = row[25];
+      record->LATITUDE = row[26];
+      record->LONGITUDE = row[27];
+      record->MARADDRESSREPOSITORYID = row[28];
+      record->GIS_ID = row[29];
+      record->GLOBALID = row[30];
+      record->CREATED = row[31];
+      record->EDITED = row[32];
+      record->GDB_FROM_DATE = row[33];
+      record->GDB_TO_DATE = row[34];
+      record->GDB_ARCHIVE_OID = row[35];
+      record->SE_ANNO_CAD_DATA = row[36];
+      record->OBJECTID = row[37];
+
+      session.add(std::move(record));
+    }
+
+    transaction.commit();
+    return 1;
+  }
+  catch (const std::exception& e)
+  {
+    std::cerr << e.what() << std::endl;
+    return -1;
+  }
 }

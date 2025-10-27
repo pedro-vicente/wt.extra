@@ -16,28 +16,6 @@ include_directories(${WT_INCLUDE})
 add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 
 #//////////////////////////
-# build Wt on Windows (debug sources)
-#//////////////////////////
-
-if (MSVC)
-  set(BOOST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0")
-  set(Boost_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0/include")
-  set(DBoost_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/build/boost_1_88_0/lib")
-  set(BUILD_EXAMPLES OFF)
-  set(BUILD_TESTS OFF)
-  set(SHARED_LIBS OFF)
-  add_subdirectory(ext/wt-4.12.0)
-  set_target_properties(wt PROPERTIES FOLDER "ext")
-  set_target_properties(wthttp PROPERTIES FOLDER "ext")
-  set_target_properties(doc PROPERTIES FOLDER "ext")
-  set_target_properties(wtdbo PROPERTIES FOLDER "ext")
-  set_target_properties(wtdbosqlite3 PROPERTIES FOLDER "ext")
-  set_target_properties(wttest PROPERTIES FOLDER "ext")
-  set_target_properties(wtdbomssqlserver PROPERTIES FOLDER "ext")
-  set_target_properties(wtisapi PROPERTIES FOLDER "ext")
-endif()
-
-#//////////////////////////
 # source files
 #//////////////////////////
 
@@ -50,6 +28,7 @@ set(src ${src})
 set(src ${src} src/requests.cc)
 set(src ${src} src/parser.cc)
 set(src ${src} src/parser.hh)
+set(src ${src} src/service.hh)
 
 add_executable(mapbox src/mapbox/WMapbox.cc src/mapbox/WMapbox.hh src/mapbox.cc ${src})
 add_executable(leaflet src/leaflet.cc src/leaflet/WLeaflet.cc src/leaflet/WLeaflet.hh ${src})
@@ -104,8 +83,10 @@ if(LINUX)
 endif()
 
 if (MSVC)
-  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/build/wt-4.12.0/src/Debug/wtd.lib)
-  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/build/wt-4.12.0/src/http/Debug/wthttpd.lib)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/wtd.lib)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/wthttpd.lib)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/wtdbod.lib)
+  set(lib_dep ${lib_dep} ${CMAKE_CURRENT_SOURCE_DIR}/install/wt/lib/wtdbosqlite3d.lib)
   set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_filesystem-vc143-mt-gd-x64-1_88.lib)
   set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_thread-vc143-mt-gd-x64-1_88.lib)
   set(lib_dep ${lib_dep} ${BOOST_LIB_DIRS}/libboost_program_options-vc143-mt-gd-x64-1_88.lib)
@@ -136,6 +117,7 @@ message(STATUS "lib_dep: " ${lib_dep})
 target_link_libraries (mapbox ${lib_dep})
 target_link_libraries (leaflet ${lib_dep})
 target_link_libraries (maplibre ${lib_dep})
+target_link_libraries (parser ${lib_dep})
 
 #//////////////////////////
 # data files 
