@@ -8,15 +8,50 @@
 #include <Wt/WBreak.h>
 #include <Wt/Dbo/Dbo.h>
 #include <Wt/Dbo/backend/Sqlite3.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <vector>
 #include <string>
 #include <map>
 #include <sstream>
-#include "service.hh"
 #include "map.hh"
-#include "web/Configuration.h"
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// Coordinate
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Coordinate
+{
+  std::string latitude;
+  std::string longitude;
+  std::string service;
+  Coordinate(const std::string& lat, const std::string& lon, const std::string& service)
+    : latitude(lat), longitude(lon), service(service) {
+  }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// globals
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::string geojson_wards;
+std::map<std::string, std::string> colors;
+int load_service_requests(std::vector<Coordinate>& coordinates, const std::string& service);
+
+std::vector<std::string> services = {
+    "Abandoned Vehicle",
+    "Bulk Collection",
+    "Illegal Dumping",
+    "Pothole",
+    "Streetlight Repair",
+    "Tree Inspection",
+    "Parking Enforcement",
+    "Graffiti Removal",
+    "Trash Collection",
+    "Rodent Inspection"
+};
+
 std::vector<std::string> ward_color =
 { rgb_to_hex(128, 128, 0), //olive
   rgb_to_hex(255, 255, 0), //yellow 
@@ -49,25 +84,6 @@ namespace Wt
     virtual void render(WFlags<RenderFlag> flags) override;
   };
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// database
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int load_service_requests(std::vector<Coordinate>& coordinates, const std::string& service);
-
-std::vector<std::string> services = {
-    "Abandoned Vehicle",
-    "Bulk Collection",
-    "Illegal Dumping",
-    "Pothole",
-    "Streetlight Repair",
-    "Tree Inspection",
-    "Parking Enforcement",
-    "Graffiti Removal",
-    "Trash Collection",
-    "Rodent Inspection"
-};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ApplicationMap
@@ -165,7 +181,8 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 
 void ApplicationMap::load()
 {
-  std::vector<Coordinate> all_coords;
+  map->coordinates.clear();
+  map->coordinates.reserve(5000);
 
   std::map<std::string, Wt::WCheckBox*>::iterator it;
   for (it = service_checkboxes.begin(); it != service_checkboxes.end(); ++it)
@@ -175,14 +192,9 @@ void ApplicationMap::load()
       std::vector<Coordinate> coords;
       if (load_service_requests(coords, it->first) > 0)
       {
-        all_coords.insert(all_coords.end(), coords.begin(), coords.end());
+        map->coordinates.insert(map->coordinates.end(), coords.begin(), coords.end());
       }
     }
-  }
-
-  if (!all_coords.empty())
-  {
-    map->coordinates = all_coords;
   }
 }
 
@@ -200,7 +212,7 @@ void ApplicationMap::update()
     m->geojson = geojson_wards;
   }
 
-  std::vector<Coordinate> filtered_coords;
+  m->coordinates.reserve(5000);
 
   std::map<std::string, Wt::WCheckBox*>::iterator it;
   for (it = service_checkboxes.begin(); it != service_checkboxes.end(); ++it)
@@ -210,14 +222,9 @@ void ApplicationMap::update()
       std::vector<Coordinate> coords;
       if (load_service_requests(coords, it->first) > 0)
       {
-        filtered_coords.insert(filtered_coords.end(), coords.begin(), coords.end());
+        m->coordinates.insert(m->coordinates.end(), coords.begin(), coords.end());
       }
     }
-  }
-
-  if (!filtered_coords.empty())
-  {
-    m->coordinates = filtered_coords;
   }
 
   map = map_container->addWidget(std::move(m));
@@ -249,6 +256,17 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
+  colors["Abandoned Vehicle"] = "#8B4513";      // Brown 
+  colors["Bulk Collection"] = "#00FF00";        // Green
+  colors["Illegal Dumping"] = "#0000FF";        // Blue
+  colors["Pothole"] = "#FFFF00";                // Yellow
+  colors["Streetlight Repair"] = "#FF00FF";     // Magenta
+  colors["Tree Inspection"] = "#00FFFF";        // Cyan
+  colors["Parking Enforcement"] = "#FFA500";    // Orange
+  colors["Graffiti Removal"] = "#800080";       // Purple
+  colors["Trash Collection"] = "#FFC0CB";       // Pink
+  colors["Rodent Inspection"] = "#FF0000";      // Red 
+
   geojson_wards = load_geojson("ward-2012.geojson");
   return Wt::WRun(argc, argv, &create_application);
 }
@@ -283,7 +301,7 @@ int load_service_requests(std::vector<Coordinate>& coordinates, const std::strin
       {
         double lat_d = std::stod(lat);
         double lon_d = std::stod(lon);
-        coordinates.push_back(Coordinate(lat, lon));
+        coordinates.push_back(Coordinate(lat, lon, service));
       }
       catch (...)
       {
@@ -354,7 +372,7 @@ namespace Wt
       std::stringstream js;
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
-      // Create map with Canvas renderer
+      // create map
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
       js << "const map = new maplibregl.Map({\n"
@@ -370,10 +388,6 @@ namespace Wt
       OutputDebugStringA(js.str().c_str());
 #endif
 
-      /////////////////////////////////////////////////////////////////////////////////////////////////////
-      // geoJSON with Wards
-      /////////////////////////////////////////////////////////////////////////////////////////////////////
-
       js << "map.on('load', function() {\n";
 
       js << "var ward_color = [";
@@ -385,7 +399,7 @@ namespace Wt
       js << "];\n";
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
-      // add ward GeoJSON source and layer
+      // add ward layer
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
       js << "map.addSource('wards', {\n"
@@ -416,70 +430,97 @@ namespace Wt
 #endif
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
-      // incidents as circles with GeoJSON FeatureCollection
+      // create separate layer for each service type
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
       if (!coordinates.empty())
       {
-        js << "var circles = [];\n";
+        std::map<std::string, std::vector<Coordinate>> by_service;
 
         for (size_t idx = 0; idx < coordinates.size(); ++idx)
         {
-          std::string lat = coordinates[idx].latitude;
-          std::string lon = coordinates[idx].longitude;
-
-          if (!lat.empty() && !lon.empty())
-          {
-            js << "circles.push({"
-              << "'type': 'Feature',"
-              << "'geometry': {"
-              << "'type': 'Point',"
-              << "'coordinates': [" << lon << ", " << lat << "]"
-              << "},"
-              << "'properties': {}"
-              << "});\n";
-          }
+          std::string service = coordinates[idx].service;
+          by_service[service].push_back(coordinates[idx]);
         }
 
-        js << "map.addSource('incidents', {\n"
-          << "  'type': 'geojson',\n"
-          << "  'data': {\n"
-          << "    'type': 'FeatureCollection',\n"
-          << "    'features': circles\n"
-          << "  }\n"
-          << "});\n"
+        std::map<std::string, std::vector<Coordinate>>::iterator service_it;
+        for (service_it = by_service.begin(); service_it != by_service.end(); ++service_it)
+        {
+          const std::string& service = service_it->first;
+          const std::vector<Coordinate>& coords = service_it->second;
 
-          << "map.addLayer({\n"
-          << "  'id': 'incidents-circles',\n"
-          << "  'type': 'circle',\n"
-          << "  'source': 'incidents',\n"
-          << "  'paint': {\n"
-          << "    'circle-radius': [\n"
-          << "      'interpolate', ['linear'], ['zoom'],\n"
-          << "      10, 2,\n"
-          << "      12, 4,\n"
-          << "      14, 6,\n"
-          << "      16, 8\n"
-          << "    ],\n"
-          << "    'circle-color': '#ff0000',\n"
-          << "    'circle-opacity': 0.4\n"
-          << "  }\n"
-          << "});\n";
+          std::string color = "#ff0000";
+          std::map<std::string, std::string>::iterator color_it = colors.find(service);
+          if (color_it != colors.end())
+          {
+            color = color_it->second;
+          }
+
+          std::string service_ = service;
+          for (size_t i = 0; i < service_.length(); ++i)
+          {
+            if (service_[i] == ' ') service_[i] = '_';
+          }
+
+          std::string source_id = "incidents-" + service_;
+          std::string layer_id = "incidents-layer-" + service_;
+
+          js << "var features_" << service_ << " = [];\n";
+
+          for (size_t idx = 0; idx < coords.size(); ++idx)
+          {
+            std::string lat = coords[idx].latitude;
+            std::string lon = coords[idx].longitude;
+
+            if (!lat.empty() && !lon.empty())
+            {
+              js << "features_" << service_ << ".push({"
+                << "'type': 'Feature',"
+                << "'geometry': {"
+                << "'type': 'Point',"
+                << "'coordinates': [" << lon << ", " << lat << "]"
+                << "},"
+                << "'properties': {"
+                << "'service': '" << service << "'"
+                << "}"
+                << "});\n";
+            }
+          }
+
+          js << "map.addSource('" << source_id << "', {\n"
+            << "  'type': 'geojson',\n"
+            << "  'data': {\n"
+            << "    'type': 'FeatureCollection',\n"
+            << "    'features': features_" << service_ << "\n"
+            << "  }\n"
+            << "});\n";
+
+          js << "map.addLayer({\n"
+            << "  'id': '" << layer_id << "',\n"
+            << "  'type': 'circle',\n"
+            << "  'source': '" << source_id << "',\n"
+            << "  'paint': {\n"
+            << "    'circle-radius': [\n"
+            << "      'interpolate', ['linear'], ['zoom'],\n"
+            << "      10, 3,\n"
+            << "      12, 5,\n"
+            << "      14, 7,\n"
+            << "      16, 9\n"
+            << "    ],\n"
+            << "    'circle-color': '" << color << "',\n"
+            << "    'circle-opacity': 0.2\n"
+            << "  }\n"
+            << "});\n";
+
+        }
       }
 
       //close map.on('load')
       js << "});\n";
 
-#ifdef _WIN32
-      if (coordinates.empty())
-      {
-        OutputDebugStringA(js.str().c_str());
-      }
-#endif
-
       WApplication* app = WApplication::instance();
       app->doJavaScript(js.str());
     }
-  } //render
+  }
 
 }// namespace Wt
