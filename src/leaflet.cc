@@ -5,19 +5,16 @@
 #include <Wt/WVBoxLayout.h>
 #include <Wt/WCheckBox.h>
 #include <Wt/WBreak.h>
-#include <fstream>
-#include <sstream>
 #include <vector>
 #include <string>
-#include <iostream>
 #include "WLeaflet.hh"
 #include "parser.hh"
+#include "map.hh"
 
 csv_parser* parser = nullptr;
 std::string geojson_wards;
 
 int load_dc311_simple();
-int load_geojson();
 
 std::vector<std::string> services = {
     "Abandoned Vehicle",
@@ -109,10 +106,9 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
     map->geojson = geojson_wards;
   }
 
-  if (!parser->latitude.empty())
+  if (!parser->coordinates.empty())
   {
-    map->latitude = parser->latitude;
-    map->longitude = parser->longitude;
+    map->coordinates = parser->coordinates;
   }
 
   layout->addWidget(std::move(container_map), 1);
@@ -133,10 +129,9 @@ void ApplicationMap::onCheckBoxChanged()
   }
   if (rodent_checkbox->isChecked())
   {
-    if (!parser->latitude.empty())
+    if (!parser->coordinates.empty())
     {
-      m->latitude = parser->latitude;
-      m->longitude = parser->longitude;
+      m->coordinates = parser->coordinates;
     }
   }
   map = map_container->addWidget(std::move(m));
@@ -167,12 +162,7 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
-  std::cout << "Loading data files..." << std::endl;
-
-  if (load_geojson() < 0)
-  {
-  }
-
+  geojson_wards = load_geojson("ward-2012.geojson");
   if (load_dc311_simple() < 0)
   {
   }

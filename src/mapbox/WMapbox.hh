@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include "parser.hh"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // WMapbox
@@ -19,14 +20,12 @@ namespace Wt
     WMapbox();
     ~WMapbox()
     {
-      latitude.clear();
-      longitude.clear();
+      coordinates.clear();
       geojson.clear();
     }
 
     std::string geojson;
-    std::vector<std::string> latitude;
-    std::vector<std::string> longitude;
+    std::vector<Coordinate> coordinates;
 
   protected:
     Impl* impl;

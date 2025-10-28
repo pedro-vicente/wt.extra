@@ -1,9 +1,7 @@
 #include "WLeaflet.hh"
 #include "web/Configuration.h"
 #include <sstream>
-
-std::string to_hex(int n);
-std::string rgb_to_hex(int r, int g, int b);
+#include "map.hh"
 
 std::vector<std::string> ward_color =
 { rgb_to_hex(128, 128, 0), //olive
@@ -117,14 +115,14 @@ namespace Wt
       // incidents as circles with GeoJSON FeatureCollection
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-      if (!latitude.empty() && !longitude.empty())
+      if (!coordinates.empty())
       {
         js << "var circles = [];";
 
-        for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
+        for (size_t idx = 0; idx < coordinates.size(); ++idx)
         {
-          std::string lat = latitude[idx];
-          std::string lon = longitude[idx];
+          std::string lat = coordinates[idx].latitude;
+          std::string lon = coordinates[idx].longitude;
 
           if (!lat.empty() && !lon.empty())
           {

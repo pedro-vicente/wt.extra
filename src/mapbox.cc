@@ -1,21 +1,16 @@
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
-#include <Wt/WText.h>
-#include "WMapbox.hh"
-#include "parser.hh"
-
-#include <fstream>
-#include <sstream>
 #include <vector>
 #include <string>
-#include <iostream>
+#include "WMapbox.hh"
+#include "parser.hh"
+#include "map.hh"
 
 csv_parser* parser = nullptr;
 std::string geojson_wards;
 
 int load_dc311_simple();
 int load_dc311_full();
-int load_geojson();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // ApplicationMap
@@ -48,10 +43,9 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
     map->geojson = geojson_wards;
   }
 
-  if (parser && !parser->latitude.empty())
+  if (parser && !parser->coordinates.empty())
   {
-    map->latitude = parser->latitude;
-    map->longitude = parser->longitude;
+    map->coordinates = parser->coordinates;
   }
 }
 
@@ -78,12 +72,7 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
-  std::cout << "Loading data files..." << std::endl;
-
-  if (load_geojson() < 0)
-  {  
-  }
-
+  geojson_wards = load_geojson("ward-2012.geojson");
   if (load_dc311_simple() < 0)
   { 
   }

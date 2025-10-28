@@ -19,19 +19,19 @@ add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 # source files
 #//////////////////////////
 
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/mapbox")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/leaflet")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/maplibre")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/wt-4.12.0/src")
 
 set(src ${src})
-set(src ${src} src/requests.cc)
-set(src ${src} src/parser.cc)
-set(src ${src} src/parser.hh)
 set(src ${src} src/service.hh)
+set(src ${src} src/map.hh)
+set(src ${src} src/map.cc)
 
-add_executable(mapbox src/mapbox/WMapbox.cc src/mapbox/WMapbox.hh src/mapbox.cc ${src})
-add_executable(leaflet src/leaflet.cc src/leaflet/WLeaflet.cc src/leaflet/WLeaflet.hh ${src})
+add_executable(mapbox src/parser.cc src/parser.hh src/requests.cc src/mapbox/WMapbox.cc src/mapbox/WMapbox.hh src/mapbox.cc ${src})
+add_executable(leaflet src/parser.cc src/parser.hh src/requests.cc src/leaflet.cc src/leaflet/WLeaflet.cc src/leaflet/WLeaflet.hh ${src})
 add_executable(maplibre src/maplibre.cc src/maplibre/WMaplibre.cc src/maplibre/WMaplibre.hh ${src})
 add_executable(splitter src/splitter.cc)
 add_executable(parser src/parse.cc src/parser.cc src/parser.hh)

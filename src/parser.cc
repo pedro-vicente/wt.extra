@@ -3,7 +3,7 @@
 #include <iostream>
 #include <Wt/Dbo/Dbo.h>
 #include <Wt/Dbo/backend/Sqlite3.h>
-#include "parser.hh" 
+#include "parser.hh"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // csv_parser
@@ -207,8 +207,7 @@ int csv_parser::load_simple_file()
       {
         double lat_ = std::stod(lat);
         double lon_ = std::stod(lon);
-        latitude.push_back(lat);
-        longitude.push_back(lon);
+        coordinates.push_back(Coordinate(lat, lon));
       }
       catch (const std::exception& e)
       {
@@ -233,7 +232,7 @@ int csv_parser::write_to_database(const std::string& db_path)
     auto sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
     Wt::Dbo::Session session;
     session.setConnection(std::move(sqlite3));
-    
+
     Wt::Dbo::Transaction transaction(session);
 
     session.execute(
@@ -279,11 +278,15 @@ int csv_parser::write_to_database(const std::string& db_path)
       "  OBJECTID TEXT"
       ")");
 
-    session.execute("CREATE INDEX IF NOT EXISTS idx_service_type ON service_requests(SERVICECODEDESCRIPTION)");
+    session.execute("CREATE INDEX IF NOT EXISTS idx_service_code ON service_requests(SERVICECODEDESCRIPTION)");
+    session.execute("CREATE INDEX IF NOT EXISTS idx_service_type ON service_requests(SERVICETYPECODEDESCRIPTION)");
     session.execute("CREATE INDEX IF NOT EXISTS idx_ward ON service_requests(WARD)");
     session.execute("CREATE INDEX IF NOT EXISTS idx_lat_lon ON service_requests(LATITUDE, LONGITUDE)");
 
+    std::cout << "Writing " << data.size() << " records to database..." << std::endl;
+
     int count = 0;
+
     for (const auto& row : data)
     {
       std::vector<std::string> val;
@@ -331,7 +334,7 @@ int csv_parser::write_to_database(const std::string& db_path)
     }
 
     transaction.commit();
-
+    std::cout << "  Records: " << count << std::endl;
     return 1;
   }
   catch (const std::exception& e)
@@ -341,86 +344,3 @@ int csv_parser::write_to_database(const std::string& db_path)
   }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// load_service_requests
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int load_service_requests(
-  const std::string& db_path,
-  std::vector<std::string>& latitude,
-  std::vector<std::string>& longitude,
-  const std::string& service_filter)
-{
-  try
-  {
-    auto sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
-    Wt::Dbo::Session session;
-    session.setConnection(std::move(sqlite3));
-
-    latitude.clear();
-    longitude.clear();
-
-    Wt::Dbo::Transaction transaction(session);
-
-    std::string sql;
-
-    if (service_filter.empty())
-    {
-      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
-        "WHERE LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
-        "AND LATITUDE != '' AND LONGITUDE != ''";
-    }
-    else
-    {
-      std::string filter = service_filter;
-      size_t pos = 0;
-      while ((pos = filter.find("'", pos)) != std::string::npos)
-      {
-        filter.replace(pos, 1, "''");
-        pos += 2;
-      }
-
-      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
-        "WHERE SERVICECODEDESCRIPTION LIKE '%" + filter + "%' "
-        "AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
-        "AND LATITUDE != '' AND LONGITUDE != ''";
-    }
-
-    auto results = session.query<std::tuple<std::string, std::string>>(sql).resultList();
-
-    for (const auto& row : results)
-    {
-      std::string lat = std::get<0>(row);
-      std::string lon = std::get<1>(row);
-
-      try
-      {
-        double lat_d = std::stod(lat);
-        double lon_d = std::stod(lon);
-        latitude.push_back(lat);
-        longitude.push_back(lon);
-      }
-      catch (...)
-      {
-
-      }
-    }
-
-    transaction.commit();
-
-    return 1;
-  }
-  catch (const std::exception& e)
-  {
-    std::cerr << e.what() << std::endl;
-    return -1;
-  }
-}
-
-int load_service_requests(
-  const std::string& db_path,
-  std::vector<std::string>& latitude,
-  std::vector<std::string>& longitude)
-{
-  return load_service_requests(db_path, latitude, longitude, "");
-}

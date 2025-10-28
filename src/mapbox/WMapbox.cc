@@ -1,8 +1,6 @@
 #include "WMapbox.hh"
 #include "web/Configuration.h"
-
-std::string to_hex(int n);
-std::string rgb_to_hex(int r, int g, int b);
+#include "map.hh"
 
 namespace Wt
 {
@@ -129,7 +127,7 @@ namespace Wt
       // GeoJSON source for circles (on top of polygons)
       /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-      if (!latitude.empty() && !longitude.empty())
+      if (!coordinates.empty())
       {
         js +=
           "    map.addSource('circle-points', {"
@@ -140,10 +138,10 @@ namespace Wt
 
         bool first_feature = true;
 
-        for (size_t idx = 0; idx < latitude.size() && idx < longitude.size(); ++idx)
+        for (size_t idx = 0; idx < coordinates.size(); ++idx)
         {
-          std::string lat = latitude[idx];
-          std::string lon = longitude[idx];
+          std::string lat = coordinates[idx].latitude;
+          std::string lon = coordinates[idx].longitude;
 
           if (!lat.empty() && !lon.empty())
           {
@@ -188,7 +186,7 @@ namespace Wt
           "      }"
           "    });"
           "    "
-          "    console.log('Added " + std::to_string(latitude.size()) + " circles to map');";
+          "    console.log('Added " + std::to_string(coordinates.size()) + " circles to map');";
       }
 
       js +=

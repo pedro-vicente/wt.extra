@@ -1,8 +1,9 @@
 #ifndef PARSER_HH
 #define PARSER_HH
 
-#include <string>
 #include <vector>
+#include <string>
+#include "service.hh"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // csv_parser
@@ -35,8 +36,7 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////////////
 
   int load_simple_file();
-  std::vector<std::string> latitude;
-  std::vector<std::string> longitude;
+  std::vector<Coordinate> coordinates;
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // database
@@ -45,20 +45,5 @@ public:
   int write_to_database(const std::string& db_path);
 
 };
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// database 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int load_service_requests(
-  const std::string& db_path,
-  std::vector<std::string>& latitude,
-  std::vector<std::string>& longitude);
-
-int load_service_requests(
-  const std::string& db_path,
-  std::vector<std::string>& latitude,
-  std::vector<std::string>& longitude,
-  const std::string& service_filter);
 
 #endif

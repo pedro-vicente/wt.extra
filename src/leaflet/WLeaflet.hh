@@ -4,6 +4,7 @@
 #include <Wt/WCompositeWidget.h>
 #include <vector>
 #include <string>
+#include "parser.hh"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // WLeaflet
@@ -18,14 +19,12 @@ namespace Wt
     WLeaflet();
     ~WLeaflet()
     {
-      latitude.clear();
-      longitude.clear();
+      coordinates.clear();
       geojson.clear();
     }
 
     std::string geojson;
-    std::vector<std::string> latitude;
-    std::vector<std::string> longitude;
+    std::vector<Coordinate> coordinates;
 
   protected:
     Impl* impl;

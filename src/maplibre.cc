@@ -5,22 +5,27 @@
 #include <Wt/WVBoxLayout.h>
 #include <Wt/WCheckBox.h>
 #include <Wt/WBreak.h>
-#include <fstream>
-#include <sstream>
+#include <Wt/Dbo/Dbo.h>
+#include <Wt/Dbo/backend/Sqlite3.h>
 #include <vector>
 #include <string>
-#include <iostream>
 #include <map>
 #include "WMaplibre.hh"
-#include "parser.hh"
+#include "service.hh"
+#include "map.hh"
 
-csv_parser* parser = nullptr;
 std::string geojson_wards;
 std::string database_path = "dc311.db";
 
-int load_geojson();
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// database
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// DC 311 Service types based on SERVICECODEDESCRIPTION
+int load_service_requests(
+  const std::string& db_path,
+  std::vector<Coordinate>& coordinates,
+  const std::string& service_filter);
+
 std::vector<std::string> services = {
     "Abandoned Vehicle",
     "Bulk Collection",
@@ -48,7 +53,7 @@ private:
   Wt::WMapLibre* map;
   Wt::WContainerWidget* map_container;
   std::map<std::string, Wt::WCheckBox*> service_checkboxes;
-  
+
   void onCheckBoxChanged(const std::string& service_type);
   void load();
   void update();
@@ -76,7 +81,7 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
   sidebar->setWidth(200);
   std::unique_ptr<Wt::WVBoxLayout> layout_sidebar = std::make_unique<Wt::WVBoxLayout>();
   layout_sidebar->addWidget(std::make_unique<Wt::WText>("<h4>DC 311 Service Types</h4>"));
-  
+
   for (const std::string& service : services)
   {
     Wt::WCheckBox* check_box = layout_sidebar->addWidget(std::make_unique<Wt::WCheckBox>(service));
@@ -89,16 +94,16 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
     {
       check_box->setChecked(false);
     }
-    
+
     service_checkboxes[service] = check_box;
-    
+
     check_box->changed().connect([this, service]() {
       onCheckBoxChanged(service);
-    });
-    
+      });
+
     layout_sidebar->addWidget(std::make_unique<Wt::WBreak>());
   }
-  
+
   layout_sidebar->addStretch(1);
   sidebar->setLayout(std::move(layout_sidebar));
   layout->addWidget(std::move(sidebar), 0);
@@ -125,69 +130,65 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// loadInitialData
-// Load initial data filtered by checked services from database
+// load
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void ApplicationMap::load()
 {
-  std::vector<std::string> all_lat, all_lon;
-  
+  std::vector<Coordinate> all_coords;
+
   for (const auto& pair : service_checkboxes)
   {
     if (pair.second->isChecked())
     {
-      std::vector<std::string> lat, lon;
-      if (load_service_requests(database_path, lat, lon, pair.first) > 0)
+      std::vector<Coordinate> coords;
+      if (load_service_requests(database_path, coords, pair.first) > 0)
       {
-        all_lat.insert(all_lat.end(), lat.begin(), lat.end());
-        all_lon.insert(all_lon.end(), lon.begin(), lon.end());
+        all_coords.insert(all_coords.end(), coords.begin(), coords.end());
       }
     }
   }
-  
-  if (!all_lat.empty())
+
+  if (!all_coords.empty())
   {
-    map->latitude = all_lat;
-    map->longitude = all_lon;
+    map->coordinates = all_coords;
   }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// updateMapWithFilters
-// Recreate map with current filter selections from database
+// update
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void ApplicationMap::update()
 {
   map_container->clear();
   std::unique_ptr<Wt::WMapLibre> m = std::make_unique<Wt::WMapLibre>();
-  
+
   if (!geojson_wards.empty())
   {
     m->geojson = geojson_wards;
   }
-  
-  std::vector<std::string> filtered_lat, filtered_lon;
+
+  std::vector<Coordinate> filtered_coords;
+
   for (const auto& pair : service_checkboxes)
   {
     if (pair.second->isChecked())
     {
-      std::vector<std::string> lat, lon;
-      if (load_service_requests(database_path, lat, lon, pair.first) > 0)
+      std::vector<Coordinate> coords;
+      if (load_service_requests(database_path, coords, pair.first) > 0)
       {
-        filtered_lat.insert(filtered_lat.end(), lat.begin(), lat.end());
-        filtered_lon.insert(filtered_lon.end(), lon.begin(), lon.end());
+        filtered_coords.insert(filtered_coords.end(), coords.begin(), coords.end());
       }
     }
   }
-  
-  if (!filtered_lat.empty())
+
+  if (!filtered_coords.empty())
   {
-    m->latitude = filtered_lat;
-    m->longitude = filtered_lon;
+    m->coordinates = filtered_coords;
   }
- 
+
+
   map = map_container->addWidget(std::move(m));
   map->resize(Wt::WLength::Auto, Wt::WLength::Auto);
   triggerUpdate();
@@ -225,8 +226,75 @@ std::unique_ptr<Wt::WApplication> create_application(const Wt::WEnvironment& env
 
 int main(int argc, char* argv[])
 {
-  if (load_geojson() < 0)
-  {
-  }
+  geojson_wards = load_geojson("ward-2012.geojson");
   return Wt::WRun(argc, argv, &create_application);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// load_service_requests
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int load_service_requests(
+  const std::string& db_path,
+  std::vector<Coordinate>& coordinates,
+  const std::string& service_filter)
+{
+  try
+  {
+    auto sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
+    Wt::Dbo::Session session;
+    session.setConnection(std::move(sqlite3));
+
+    coordinates.clear();
+
+    Wt::Dbo::Transaction transaction(session);
+    std::string sql;
+
+    if (service_filter.empty())
+    {
+      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
+        "WHERE LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
+        "AND LATITUDE != '' AND LONGITUDE != ''";
+    }
+    else
+    {
+      std::string escaped_filter = service_filter;
+      size_t pos = 0;
+      while ((pos = escaped_filter.find("'", pos)) != std::string::npos)
+      {
+        escaped_filter.replace(pos, 1, "''");
+        pos += 2;
+      }
+
+      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
+        "WHERE SERVICECODEDESCRIPTION LIKE '%" + escaped_filter + "%' "
+        "AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
+        "AND LATITUDE != '' AND LONGITUDE != ''";
+    }
+
+    auto results = session.query<std::tuple<std::string, std::string>>(sql).resultList();
+
+    for (const auto& row : results)
+    {
+      std::string lat = std::get<0>(row);
+      std::string lon = std::get<1>(row);
+      try
+      {
+        double lat_d = std::stod(lat);
+        double lon_d = std::stod(lon);
+        coordinates.push_back(Coordinate(lat, lon));
+      }
+      catch (...)
+      {
+      }
+    }
+
+    transaction.commit();
+    return 1;
+  }
+  catch (const std::exception& e)
+  {
+    std::cerr << e.what() << std::endl;
+    return -1;
+  }
 }

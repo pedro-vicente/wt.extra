@@ -4,6 +4,21 @@
 #include <string>
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+// Coordinate
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Coordinate
+{
+  std::string latitude;
+  std::string longitude;
+
+  Coordinate() = default;
+  Coordinate(const std::string& lat, const std::string& lon)
+    : latitude(lat), longitude(lon) {
+  }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // ServiceRequest - Dbo mapping class using CSV field names
 // CSV Header: X,Y,SERVICEREQUESTID,STREETADDRESS,CITY,STATE,ZIPCODE,WARD,
 //             SERVICECODE,SERVICECODEDESCRIPTION,SERVICETYPECODEDESCRIPTION,
@@ -107,48 +122,6 @@ public:
   std::string SE_ANNO_CAD_DATA;
   std::string OBJECTID;
 
-  template<class Action>
-  void persist(Action& a)
-  {
-    Wt::Dbo::field(a, X, "X");
-    Wt::Dbo::field(a, Y, "Y");
-    Wt::Dbo::field(a, SERVICEREQUESTID, "SERVICEREQUESTID");
-    Wt::Dbo::field(a, STREETADDRESS, "STREETADDRESS");
-    Wt::Dbo::field(a, CITY, "CITY");
-    Wt::Dbo::field(a, STATE, "STATE");
-    Wt::Dbo::field(a, ZIPCODE, "ZIPCODE");
-    Wt::Dbo::field(a, WARD, "WARD");
-    Wt::Dbo::field(a, SERVICECODE, "SERVICECODE");
-    Wt::Dbo::field(a, SERVICECODEDESCRIPTION, "SERVICECODEDESCRIPTION");
-    Wt::Dbo::field(a, SERVICETYPECODEDESCRIPTION, "SERVICETYPECODEDESCRIPTION");
-    Wt::Dbo::field(a, ORGANIZATIONACRONYM, "ORGANIZATIONACRONYM");
-    Wt::Dbo::field(a, SERVICECALLCOUNT, "SERVICECALLCOUNT");
-    Wt::Dbo::field(a, ADDDATE, "ADDDATE");
-    Wt::Dbo::field(a, RESOLUTIONDATE, "RESOLUTIONDATE");
-    Wt::Dbo::field(a, SERVICEDUEDATE, "SERVICEDUEDATE");
-    Wt::Dbo::field(a, SERVICEORDERDATE, "SERVICEORDERDATE");
-    Wt::Dbo::field(a, STATUS_CODE, "STATUS_CODE");
-    Wt::Dbo::field(a, SERVICEORDERSTATUS, "SERVICEORDERSTATUS");
-    Wt::Dbo::field(a, INSPECTIONFLAG, "INSPECTIONFLAG");
-    Wt::Dbo::field(a, INSPECTIONDATE, "INSPECTIONDATE");
-    Wt::Dbo::field(a, INSPECTORNAME, "INSPECTORNAME");
-    Wt::Dbo::field(a, PRIORITY, "PRIORITY");
-    Wt::Dbo::field(a, DETAILS, "DETAILS");
-    Wt::Dbo::field(a, XCOORD, "XCOORD");
-    Wt::Dbo::field(a, YCOORD, "YCOORD");
-    Wt::Dbo::field(a, LATITUDE, "LATITUDE");
-    Wt::Dbo::field(a, LONGITUDE, "LONGITUDE");
-    Wt::Dbo::field(a, MARADDRESSREPOSITORYID, "MARADDRESSREPOSITORYID");
-    Wt::Dbo::field(a, GIS_ID, "GIS_ID");
-    Wt::Dbo::field(a, GLOBALID, "GLOBALID");
-    Wt::Dbo::field(a, CREATED, "CREATED");
-    Wt::Dbo::field(a, EDITED, "EDITED");
-    Wt::Dbo::field(a, GDB_FROM_DATE, "GDB_FROM_DATE");
-    Wt::Dbo::field(a, GDB_TO_DATE, "GDB_TO_DATE");
-    Wt::Dbo::field(a, GDB_ARCHIVE_OID, "GDB_ARCHIVE_OID");
-    Wt::Dbo::field(a, SE_ANNO_CAD_DATA, "SE_ANNO_CAD_DATA");
-    Wt::Dbo::field(a, OBJECTID, "OBJECTID");
-  }
 };
 
 #endif
