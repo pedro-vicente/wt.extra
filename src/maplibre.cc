@@ -1,5 +1,6 @@
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
+#include <Wt/WCompositeWidget.h>
 #include <Wt/WHBoxLayout.h>
 #include <Wt/WText.h>
 #include <Wt/WVBoxLayout.h>
@@ -10,21 +11,50 @@
 #include <vector>
 #include <string>
 #include <map>
-#include "WMaplibre.hh"
+#include <sstream>
 #include "service.hh"
 #include "map.hh"
+#include "web/Configuration.h"
 
 std::string geojson_wards;
-std::string database_path = "dc311.db";
+std::vector<std::string> ward_color =
+{ rgb_to_hex(128, 128, 0), //olive
+  rgb_to_hex(255, 255, 0), //yellow 
+  rgb_to_hex(0, 128, 0), //green
+  rgb_to_hex(0, 255, 0), //lime
+  rgb_to_hex(0, 128, 128), //teal
+  rgb_to_hex(0, 255, 255), //aqua
+  rgb_to_hex(0, 0, 255), //blue
+  rgb_to_hex(128, 0, 128) //purple
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// WMapLibre
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace Wt
+{
+  class WT_API WMapLibre : public WCompositeWidget
+  {
+    class Impl;
+  public:
+    WMapLibre();
+    ~WMapLibre();
+
+    std::string geojson;
+    std::vector<Coordinate> coordinates;
+
+  protected:
+    Impl* impl;
+    virtual void render(WFlags<RenderFlag> flags) override;
+  };
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // database
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int load_service_requests(
-  const std::string& db_path,
-  std::vector<Coordinate>& coordinates,
-  const std::string& service_filter);
+int load_service_requests(std::vector<Coordinate>& coordinates, const std::string& service);
 
 std::vector<std::string> services = {
     "Abandoned Vehicle",
@@ -47,7 +77,6 @@ class ApplicationMap : public Wt::WApplication
 {
 public:
   ApplicationMap(const Wt::WEnvironment& env);
-  virtual ~ApplicationMap();
 
 private:
   Wt::WMapLibre* map;
@@ -82,8 +111,9 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
   std::unique_ptr<Wt::WVBoxLayout> layout_sidebar = std::make_unique<Wt::WVBoxLayout>();
   layout_sidebar->addWidget(std::make_unique<Wt::WText>("<h4>DC 311 Service Types</h4>"));
 
-  for (const std::string& service : services)
+  for (size_t idx = 0; idx < services.size(); ++idx)
   {
+    const std::string& service = services[idx];
     Wt::WCheckBox* check_box = layout_sidebar->addWidget(std::make_unique<Wt::WCheckBox>(service));
 
     if (service == "Rodent Inspection")
@@ -137,12 +167,13 @@ void ApplicationMap::load()
 {
   std::vector<Coordinate> all_coords;
 
-  for (const auto& pair : service_checkboxes)
+  std::map<std::string, Wt::WCheckBox*>::iterator it;
+  for (it = service_checkboxes.begin(); it != service_checkboxes.end(); ++it)
   {
-    if (pair.second->isChecked())
+    if (it->second->isChecked())
     {
       std::vector<Coordinate> coords;
-      if (load_service_requests(database_path, coords, pair.first) > 0)
+      if (load_service_requests(coords, it->first) > 0)
       {
         all_coords.insert(all_coords.end(), coords.begin(), coords.end());
       }
@@ -171,12 +202,13 @@ void ApplicationMap::update()
 
   std::vector<Coordinate> filtered_coords;
 
-  for (const auto& pair : service_checkboxes)
+  std::map<std::string, Wt::WCheckBox*>::iterator it;
+  for (it = service_checkboxes.begin(); it != service_checkboxes.end(); ++it)
   {
-    if (pair.second->isChecked())
+    if (it->second->isChecked())
     {
       std::vector<Coordinate> coords;
-      if (load_service_requests(database_path, coords, pair.first) > 0)
+      if (load_service_requests(coords, it->first) > 0)
       {
         filtered_coords.insert(filtered_coords.end(), coords.begin(), coords.end());
       }
@@ -187,7 +219,6 @@ void ApplicationMap::update()
   {
     m->coordinates = filtered_coords;
   }
-
 
   map = map_container->addWidget(std::move(m));
   map->resize(Wt::WLength::Auto, Wt::WLength::Auto);
@@ -201,14 +232,6 @@ void ApplicationMap::update()
 void ApplicationMap::onCheckBoxChanged(const std::string& service_type)
 {
   update();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// ~ApplicationMap
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ApplicationMap::~ApplicationMap()
-{
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,48 +257,26 @@ int main(int argc, char* argv[])
 // load_service_requests
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int load_service_requests(
-  const std::string& db_path,
-  std::vector<Coordinate>& coordinates,
-  const std::string& service_filter)
+int load_service_requests(std::vector<Coordinate>& coordinates, const std::string& service)
 {
   try
   {
-    auto sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>(db_path);
+    std::unique_ptr<Wt::Dbo::backend::Sqlite3> sqlite3 = std::make_unique<Wt::Dbo::backend::Sqlite3>("dc311.db");
     Wt::Dbo::Session session;
     session.setConnection(std::move(sqlite3));
 
-    coordinates.clear();
-
     Wt::Dbo::Transaction transaction(session);
-    std::string sql;
+    std::string sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
+      "WHERE SERVICECODEDESCRIPTION LIKE '%" + service + "%' "
+      "AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
+      "AND LATITUDE != '' AND LONGITUDE != ''";
 
-    if (service_filter.empty())
+    Wt::Dbo::collection<std::tuple<std::string, std::string>> results = session.query<std::tuple<std::string, std::string>>(sql).resultList();
+
+    typedef Wt::Dbo::collection<std::tuple<std::string, std::string>>::const_iterator ResultIterator;
+    for (ResultIterator row_it = results.begin(); row_it != results.end(); ++row_it)
     {
-      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
-        "WHERE LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
-        "AND LATITUDE != '' AND LONGITUDE != ''";
-    }
-    else
-    {
-      std::string escaped_filter = service_filter;
-      size_t pos = 0;
-      while ((pos = escaped_filter.find("'", pos)) != std::string::npos)
-      {
-        escaped_filter.replace(pos, 1, "''");
-        pos += 2;
-      }
-
-      sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
-        "WHERE SERVICECODEDESCRIPTION LIKE '%" + escaped_filter + "%' "
-        "AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
-        "AND LATITUDE != '' AND LONGITUDE != ''";
-    }
-
-    auto results = session.query<std::tuple<std::string, std::string>>(sql).resultList();
-
-    for (const auto& row : results)
-    {
+      const std::tuple<std::string, std::string>& row = *row_it;
       std::string lat = std::get<0>(row);
       std::string lon = std::get<1>(row);
       try
@@ -290,6 +291,7 @@ int load_service_requests(
     }
 
     transaction.commit();
+    std::cout << service << ": " << coordinates.size() << " coordinates." << std::endl;
     return 1;
   }
   catch (const std::exception& e)
@@ -298,3 +300,186 @@ int load_service_requests(
     return -1;
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// WMapLibre
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace Wt
+{
+  class WMapLibre::Impl : public WWebWidget
+  {
+  public:
+    Impl();
+    virtual DomElementType domElementType() const override;
+  };
+
+  WMapLibre::Impl::Impl()
+  {
+    setInline(false);
+  }
+
+  DomElementType WMapLibre::Impl::domElementType() const
+  {
+    return DomElementType::DIV;
+  }
+
+  WMapLibre::WMapLibre()
+  {
+    setImplementation(std::unique_ptr<Impl>(impl = new Impl()));
+    WApplication* app = WApplication::instance();
+    this->addCssRule("body", "margin: 0; padding: 0;");
+    this->addCssRule("#" + id(), "position: absolute; top: 0; bottom: 0; width: 100%;");
+    app->useStyleSheet("https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css");
+    const std::string library = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+    app->require(library, "maplibre");
+  }
+
+  WMapLibre::~WMapLibre()
+  {
+    coordinates.clear();
+    geojson.clear();
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // render
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  void WMapLibre::render(WFlags<RenderFlag> flags)
+  {
+    WCompositeWidget::render(flags);
+
+    if (flags.test(RenderFlag::Full))
+    {
+      std::stringstream js;
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Create map with Canvas renderer
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      js << "const map = new maplibregl.Map({\n"
+        << "  container: " << jsRef() << ",\n"
+        << "  style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',\n"
+        << "  center: [-77.0369, 38.9072],\n"
+        << "  zoom: 12\n"
+        << "});\n"
+
+        << "map.addControl(new maplibregl.NavigationControl());\n";
+
+#ifdef _WIN32
+      OutputDebugStringA(js.str().c_str());
+#endif
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // geoJSON with Wards
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      js << "map.on('load', function() {\n";
+
+      js << "var ward_color = [";
+      for (size_t idx = 0; idx < ward_color.size(); ++idx)
+      {
+        js << "'" << ward_color[idx] << "'";
+        if (idx < ward_color.size() - 1) js << ",";
+      }
+      js << "];\n";
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // add ward GeoJSON source and layer
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      js << "map.addSource('wards', {\n"
+        << "  'type': 'geojson',\n"
+        << "  'data': " << geojson << "\n"
+        << "});\n"
+
+        << "map.addLayer({\n"
+        << "  'id': 'wards-fill',\n"
+        << "  'type': 'fill',\n"
+        << "  'source': 'wards',\n"
+        << "  'paint': {\n"
+        << "    'fill-color': ['get', ['to-string', ['get', 'WARD']], ['literal', {\n";
+
+      for (size_t idx = 0; idx < ward_color.size(); ++idx)
+      {
+        js << "      '" << (idx + 1) << "': '" << ward_color[idx] << "'";
+        if (idx < ward_color.size() - 1) js << ",\n";
+      }
+
+      js << "\n    }]],\n"
+        << "    'fill-opacity': 0.2\n"
+        << "  }\n"
+        << "});\n";
+
+#ifdef _WIN32
+      OutputDebugStringA(js.str().c_str());
+#endif
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // incidents as circles with GeoJSON FeatureCollection
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      if (!coordinates.empty())
+      {
+        js << "var circles = [];\n";
+
+        for (size_t idx = 0; idx < coordinates.size(); ++idx)
+        {
+          std::string lat = coordinates[idx].latitude;
+          std::string lon = coordinates[idx].longitude;
+
+          if (!lat.empty() && !lon.empty())
+          {
+            js << "circles.push({"
+              << "'type': 'Feature',"
+              << "'geometry': {"
+              << "'type': 'Point',"
+              << "'coordinates': [" << lon << ", " << lat << "]"
+              << "},"
+              << "'properties': {}"
+              << "});\n";
+          }
+        }
+
+        js << "map.addSource('incidents', {\n"
+          << "  'type': 'geojson',\n"
+          << "  'data': {\n"
+          << "    'type': 'FeatureCollection',\n"
+          << "    'features': circles\n"
+          << "  }\n"
+          << "});\n"
+
+          << "map.addLayer({\n"
+          << "  'id': 'incidents-circles',\n"
+          << "  'type': 'circle',\n"
+          << "  'source': 'incidents',\n"
+          << "  'paint': {\n"
+          << "    'circle-radius': [\n"
+          << "      'interpolate', ['linear'], ['zoom'],\n"
+          << "      10, 2,\n"
+          << "      12, 4,\n"
+          << "      14, 6,\n"
+          << "      16, 8\n"
+          << "    ],\n"
+          << "    'circle-color': '#ff0000',\n"
+          << "    'circle-opacity': 0.4\n"
+          << "  }\n"
+          << "});\n";
+      }
+
+      //close map.on('load')
+      js << "});\n";
+
+#ifdef _WIN32
+      if (coordinates.empty())
+      {
+        OutputDebugStringA(js.str().c_str());
+      }
+#endif
+
+      WApplication* app = WApplication::instance();
+      app->doJavaScript(js.str());
+    }
+  } //render
+
+}// namespace Wt

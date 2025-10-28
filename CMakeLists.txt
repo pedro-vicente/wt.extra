@@ -32,7 +32,7 @@ set(src ${src} src/map.cc)
 
 add_executable(mapbox src/parser.cc src/parser.hh src/requests.cc src/mapbox/WMapbox.cc src/mapbox/WMapbox.hh src/mapbox.cc ${src})
 add_executable(leaflet src/parser.cc src/parser.hh src/requests.cc src/leaflet.cc src/leaflet/WLeaflet.cc src/leaflet/WLeaflet.hh ${src})
-add_executable(maplibre src/maplibre.cc src/maplibre/WMaplibre.cc src/maplibre/WMaplibre.hh ${src})
+add_executable(maplibre src/maplibre.cc ${src})
 add_executable(splitter src/splitter.cc)
 add_executable(parser src/parse.cc src/parser.cc src/parser.hh)
 
