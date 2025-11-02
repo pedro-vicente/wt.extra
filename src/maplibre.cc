@@ -5,6 +5,7 @@
 #include <Wt/WText.h>
 #include <Wt/WVBoxLayout.h>
 #include <Wt/WCheckBox.h>
+#include <Wt/WPushButton.h>
 #include <Wt/WBreak.h>
 #include <Wt/Dbo/Dbo.h>
 #include <Wt/Dbo/backend/Sqlite3.h>
@@ -152,6 +153,22 @@ ApplicationMap::ApplicationMap(const Wt::WEnvironment& env)
 
     layout_sidebar->addWidget(std::make_unique<Wt::WBreak>());
   }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // selection controls
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  layout_sidebar->addWidget(std::make_unique<Wt::WBreak>());
+  layout_sidebar->addWidget(std::make_unique<Wt::WText>("<h4>Selection</h4>"));
+  layout_sidebar->addWidget(std::make_unique<Wt::WText>(
+    "<p style='font-size:11px;'>Hold <strong>Shift</strong> and drag on map to select area</p>"));
+
+  Wt::WPushButton* clear_btn = layout_sidebar->addWidget(
+    std::make_unique<Wt::WPushButton>("Clear Selection")
+  );
+  clear_btn->clicked().connect([=]() {
+    WApplication::instance()->doJavaScript("if (window.clearSelection) window.clearSelection();");
+    });
 
   layout_sidebar->addStretch(1);
   sidebar->setLayout(std::move(layout_sidebar));
@@ -465,6 +482,9 @@ namespace Wt
 
       if (!coordinates.empty())
       {
+        js << "var all_features = [];\n"
+          << "var layer_ids = [];\n";
+
         std::map<std::string, std::vector<Coordinate>> by_service;
 
         for (size_t idx = 0; idx < coordinates.size(); ++idx)
@@ -521,6 +541,8 @@ namespace Wt
             }
           }
 
+          js << "all_features = all_features.concat(features_" << service_ << ");\n";
+
           js << "map.addSource('" << source_id << "', {\n"
             << "  'type': 'geojson',\n"
             << "  'data': {\n"
@@ -569,7 +591,180 @@ namespace Wt
             << "  popup_" << service_ << ".remove();\n"
             << "});\n";
 
+          js << "layer_ids.push('" << layer_id << "');\n";
+
         }
+      }
+
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      // rectangle selection
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      if (!coordinates.empty())
+      {
+        js << "\n"
+          << "var container = map.getContainer();\n"
+          << "var start = null;\n"
+          << "var current = null;\n"
+          << "var box = null;\n"
+          << "var is_drawing = false;\n"
+          << "\n"
+
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+          // remove_box
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+          << "function remove_box() {\n"
+          << "  if (box && box.parentNode) {\n"
+          << "    box.parentNode.removeChild(box);\n"
+          << "  }\n"
+          << "  box = null;\n"
+          << "}\n"
+          << "\n"
+          << "function create_box() {\n"
+          << "  remove_box();\n"
+          << "  box = document.createElement('div');\n"
+          << "  box.style.position = 'absolute';\n"
+          << "  box.style.background = 'rgba(56, 135, 190, 0.1)';\n"
+          << "  box.style.border = '2px dashed #3887be';\n"
+          << "  box.style.pointerEvents = 'none';\n"
+          << "  box.style.zIndex = '1000';\n"
+          << "  container.appendChild(box);\n"
+          << "}\n"
+          << "\n"
+
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+          // update_box
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+          << "function update_box(e) {\n"
+          << "  if (!box) return;\n"
+          << "  var rect = container.getBoundingClientRect();\n"
+          << "  var min_x = Math.min(start.x, e.clientX) - rect.left;\n"
+          << "  var max_x = Math.max(start.x, e.clientX) - rect.left;\n"
+          << "  var min_y = Math.min(start.y, e.clientY) - rect.top;\n"
+          << "  var max_y = Math.max(start.y, e.clientY) - rect.top;\n"
+          << "  box.style.left = min_x + 'px';\n"
+          << "  box.style.top = min_y + 'px';\n"
+          << "  box.style.width = (max_x - min_x) + 'px';\n"
+          << "  box.style.height = (max_y - min_y) + 'px';\n"
+          << "}\n"
+          << "\n"
+          << "container.addEventListener('mousedown', function(e) {\n"
+          << "  if (!e.shiftKey) return;\n"
+          << "  e.preventDefault();\n"
+          << "  is_drawing = true;\n"
+          << "  start = {x: e.clientX, y: e.clientY};\n"
+          << "  create_box();\n"
+          << "  map.dragPan.disable();\n"
+          << "});\n"
+          << "\n"
+          << "document.addEventListener('mousemove', function(e) {\n"
+          << "  if (!is_drawing) return;\n"
+          << "  e.preventDefault();\n"
+          << "  current = {x: e.clientX, y: e.clientY};\n"
+          << "  update_box(e);\n"
+          << "});\n"
+          << "\n"
+          << "document.addEventListener('mouseup', function(e) {\n"
+          << "  if (!is_drawing) return;\n"
+          << "  is_drawing = false;\n"
+          << "  map.dragPan.enable();\n"
+          << "  \n"
+          << "  if (!current || !start) {\n"
+          << "    remove_box();\n"
+          << "    return;\n"
+          << "  }\n"
+          << "  \n"
+          << "  var width = Math.abs(current.x - start.x);\n"
+          << "  var height = Math.abs(current.y - start.y);\n"
+          << "  \n"
+          << "  if (width < 5 || height < 5) {\n"
+          << "    remove_box();\n"
+          << "    start = null;\n"
+          << "    current = null;\n"
+          << "    return;\n"
+          << "  }\n"
+          << "  \n"
+          << "  var rect = container.getBoundingClientRect();\n"
+          << "  var start_x = start.x - rect.left;\n"
+          << "  var start_y = start.y - rect.top;\n"
+          << "  var current_x = current.x - rect.left;\n"
+          << "  var current_y = current.y - rect.top;\n"
+          << "  \n"
+          << "  var start_point = map.unproject([start_x, start_y]);\n"
+          << "  var end_point = map.unproject([current_x, current_y]);\n"
+          << "  \n"
+          << "  var bbox = [\n"
+          << "    Math.min(start_point.lng, end_point.lng),\n"
+          << "    Math.min(start_point.lat, end_point.lat),\n"
+          << "    Math.max(start_point.lng, end_point.lng),\n"
+          << "    Math.max(start_point.lat, end_point.lat)\n"
+          << "  ];\n"
+          << "  \n"
+          << "  console.log('BBox:', bbox);\n"
+          << "  filter_by_bbox(bbox);\n"
+          << "  remove_box();\n"
+          << "  start = null;\n"
+          << "  current = null;\n"
+          << "});\n"
+          << "\n"
+
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+          // filter_by_bbox
+          /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+          << "function filter_by_bbox(bbox) {\n"
+          << "  var filtered = all_features.filter(function(f) {\n"
+          << "    if (!f.geometry || !f.geometry.coordinates) return false;\n"
+          << "    var c = f.geometry.coordinates;\n"
+          << "    return c[0] >= bbox[0] && c[0] <= bbox[2] && c[1] >= bbox[1] && c[1] <= bbox[3];\n"
+          << "  });\n"
+          << "  \n"
+          << "  var by_service = {};\n"
+          << "  filtered.forEach(function(f) {\n"
+          << "    var service = f.properties.service;\n"
+          << "    if (!by_service[service]) by_service[service] = [];\n"
+          << "    by_service[service].push(f);\n"
+          << "  });\n"
+          << "  \n"
+          << "  layer_ids.forEach(function(layer_id) {\n"
+          << "    var source_id = layer_id.replace('incidents-layer-', 'incidents-');\n"
+          << "    var service = layer_id.replace('incidents-layer-', '').replace(/_/g, ' ');\n"
+          << "    var features = by_service[service] || [];\n"
+          << "    var source = map.getSource(source_id);\n"
+          << "    if (source) {\n"
+          << "      source.setData({\n"
+          << "        'type': 'FeatureCollection',\n"
+          << "        'features': features\n"
+          << "      });\n"
+          << "    }\n"
+          << "  });\n"
+          << "}\n"
+          << "\n"
+          << "window.clearSelection = function() {\n"
+          << "  var by_service = {};\n"
+          << "  all_features.forEach(function(f) {\n"
+          << "    var service = f.properties.service;\n"
+          << "    if (!by_service[service]) by_service[service] = [];\n"
+          << "    by_service[service].push(f);\n"
+          << "  });\n"
+          << "  \n"
+          << "  layer_ids.forEach(function(layer_id) {\n"
+          << "    var source_id = layer_id.replace('incidents-layer-', 'incidents-');\n"
+          << "    var service = layer_id.replace('incidents-layer-', '').replace(/_/g, ' ');\n"
+          << "    var features = by_service[service] || [];\n"
+          << "    var source = map.getSource(source_id);\n"
+          << "    if (source) {\n"
+          << "      source.setData({\n"
+          << "        'type': 'FeatureCollection',\n"
+          << "        'features': features\n"
+          << "      });\n"
+          << "    }\n"
+          << "  });\n"
+          << "  \n"
+          << "};\n"
+          << "\n";
       }
 
       //close map.on('load')
