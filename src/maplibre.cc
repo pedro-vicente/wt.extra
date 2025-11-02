@@ -18,16 +18,19 @@
 #include "map.hh"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// Coordinate
+// Coordinate (selected fields from database
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Coordinate
 {
-  std::string latitude;
-  std::string longitude;
-  std::string service;
-  Coordinate(const std::string& lat, const std::string& lon, const std::string& service)
-    : latitude(lat), longitude(lon), service(service) {
+  std::string LATITUDE;
+  std::string LONGITUDE;
+  std::string SERVICECODEDESCRIPTION;
+  std::string STREETADDRESS;
+  std::string ADDDATE;
+  Coordinate(const std::string& latitude, const std::string& longitude, const std::string& service,
+    const std::string& address, const std::string& date)
+    : LATITUDE(latitude), LONGITUDE(longitude), SERVICECODEDESCRIPTION(service), STREETADDRESS(address), ADDDATE(date) {
   }
 };
 
@@ -272,6 +275,31 @@ int main(int argc, char* argv[])
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+// escape_js_string
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::string escape_js_string(const std::string& input)
+{
+  std::string output;
+  output.reserve(input.size());
+  for (size_t i = 0; i < input.size(); ++i)
+  {
+    char c = input[i];
+    switch (c)
+    {
+    case '\'': output += "\\'"; break;
+    case '\"': output += "\\\""; break;
+    case '\\': output += "\\\\"; break;
+    case '\n': output += "\\n"; break;
+    case '\r': output += "\\r"; break;
+    case '\t': output += "\\t"; break;
+    default: output += c; break;
+    }
+  }
+  return output;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // load_service_requests
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -284,24 +312,26 @@ int load_service_requests(std::vector<Coordinate>& coordinates, const std::strin
     session.setConnection(std::move(sqlite3));
 
     Wt::Dbo::Transaction transaction(session);
-    std::string sql = "SELECT LATITUDE, LONGITUDE FROM service_requests "
+    std::string sql = "SELECT LATITUDE, LONGITUDE, STREETADDRESS, ADDDATE FROM service_requests "
       "WHERE SERVICECODEDESCRIPTION LIKE '%" + service + "%' "
       "AND LATITUDE IS NOT NULL AND LONGITUDE IS NOT NULL "
       "AND LATITUDE != '' AND LONGITUDE != ''";
 
-    Wt::Dbo::collection<std::tuple<std::string, std::string>> results = session.query<std::tuple<std::string, std::string>>(sql).resultList();
+    Wt::Dbo::collection<std::tuple<std::string, std::string, std::string, std::string>> results = session.query<std::tuple<std::string, std::string, std::string, std::string>>(sql).resultList();
 
-    typedef Wt::Dbo::collection<std::tuple<std::string, std::string>>::const_iterator ResultIterator;
+    typedef Wt::Dbo::collection<std::tuple<std::string, std::string, std::string, std::string>>::const_iterator ResultIterator;
     for (ResultIterator row_it = results.begin(); row_it != results.end(); ++row_it)
     {
-      const std::tuple<std::string, std::string>& row = *row_it;
+      const std::tuple<std::string, std::string, std::string, std::string>& row = *row_it;
       std::string lat = std::get<0>(row);
       std::string lon = std::get<1>(row);
+      std::string address = std::get<2>(row);
+      std::string date = std::get<3>(row);
       try
       {
         double lat_d = std::stod(lat);
         double lon_d = std::stod(lon);
-        coordinates.push_back(Coordinate(lat, lon, service));
+        coordinates.push_back(Coordinate(lat, lon, service, address, date));
       }
       catch (...)
       {
@@ -439,7 +469,7 @@ namespace Wt
 
         for (size_t idx = 0; idx < coordinates.size(); ++idx)
         {
-          std::string service = coordinates[idx].service;
+          std::string service = coordinates[idx].SERVICECODEDESCRIPTION;
           by_service[service].push_back(coordinates[idx]);
         }
 
@@ -469,19 +499,23 @@ namespace Wt
 
           for (size_t idx = 0; idx < coords.size(); ++idx)
           {
-            std::string lat = coords[idx].latitude;
-            std::string lon = coords[idx].longitude;
+            std::string latitude = coords[idx].LATITUDE;
+            std::string longitude = coords[idx].LONGITUDE;
+            std::string address = escape_js_string(coords[idx].STREETADDRESS);
+            std::string date = escape_js_string(coords[idx].ADDDATE);
 
-            if (!lat.empty() && !lon.empty())
+            if (!latitude.empty() && !longitude.empty())
             {
               js << "features_" << service_ << ".push({"
                 << "'type': 'Feature',"
                 << "'geometry': {"
                 << "'type': 'Point',"
-                << "'coordinates': [" << lon << ", " << lat << "]"
+                << "'coordinates': [" << longitude << ", " << latitude << "]"
                 << "},"
                 << "'properties': {"
-                << "'service': '" << service << "'"
+                << "'service': '" << service << "',"
+                << "'address': '" << address << "',"
+                << "'date': '" << date << "'"
                 << "}"
                 << "});\n";
             }
@@ -510,6 +544,29 @@ namespace Wt
             << "    'circle-color': '" << color << "',\n"
             << "    'circle-opacity': 0.2\n"
             << "  }\n"
+            << "});\n";
+
+          js << "var popup_" << service_ << " = new maplibregl.Popup({\n"
+            << "  closeButton: false,\n"
+            << "  closeOnClick: false\n"
+            << "});\n";
+
+          js << "map.on('mousemove', '" << layer_id << "', function(e) {\n"
+            << "  map.getCanvas().style.cursor = 'pointer';\n"
+            << "  var coordinates = e.features[0].geometry.coordinates.slice();\n"
+            << "  var service = e.features[0].properties.service;\n"
+            << "  var address = e.features[0].properties.address || 'N/A';\n"
+            << "  var date = e.features[0].properties.date || 'N/A';\n"
+            << "  var html = '<strong>' + service + '</strong><br>' + address + '<br>' + date;\n"
+            << "  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {\n"
+            << "    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;\n"
+            << "  }\n"
+            << "  popup_" << service_ << ".setLngLat(coordinates).setHTML(html).addTo(map);\n"
+            << "});\n";
+
+          js << "map.on('mouseleave', '" << layer_id << "', function() {\n"
+            << "  map.getCanvas().style.cursor = '';\n"
+            << "  popup_" << service_ << ".remove();\n"
             << "});\n";
 
         }
