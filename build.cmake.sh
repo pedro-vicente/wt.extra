@@ -1,45 +1,37 @@
 #!/bin/bash
 set -e
 path_wt="$(pwd)/install/wt"
-path_boost="$(pwd)/build/boost_1_88_0"
 echo "Wt at: $path_wt"
-echo "Boost at: $path_boost"
+
+if [[ "$OSTYPE" == "msys"* ]]; then
+    path_boost="$(pwd)/build/boost_1_88_0"
+    echo "Boost at: $path_boost"
+fi
+
 sleep 1
+
 
 mkdir -p build/wt.extra
 pushd build
 pushd wt.extra
 
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-
-cmake ../.. --fresh \
-    -DWT_INCLUDE="$path_wt/include" \
-    -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
-    -DBOOST_LIB_DIRS="$path_boost/lib" 
-cmake --build . --parallel 2
-
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-
-cmake ../.. --fresh \
-    -DWT_INCLUDE="$path_wt/include" \
-    -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
-    -DBOOST_LIB_DIRS="$path_boost/lib" 
-cmake --build . --parallel 
-
-elif [[ "$OSTYPE" == "msys" ]]; then
-
-cmake ../.. --fresh \
-    -DWT_INCLUDE="$path_wt/include" \
-    -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
-    -DBOOST_LIB_DIRS="$path_boost/lib"
-cmake --build .  --config Debug --parallel 
-
+if [[ "$OSTYPE" == "msys"* ]]; then
+    cmake ../.. --fresh \
+        -DWT_INCLUDE="$path_wt/include" \
+        -DBOOST_INCLUDE_DIR="$path_boost/include/boost-1_88" \
+        -DBOOST_LIB_DIRS="$path_boost/lib"
+else
+    cmake ../.. --fresh \
+        -DWT_INCLUDE="$path_wt/include"
 fi
 
-if [[ "$OSTYPE" != "msys" ]]; then
-echo $(pwd)
+cmake --build . --config Debug --verbose
+
 echo "open browser http://localhost:8080"
-./maplibre --http-address=0.0.0.0 --http-port=8080  --docroot=. 
+if [[ "$OSTYPE" == "msys"* ]]; then
+./Debug/maplibre --http-address=0.0.0.0 --http-port=8080  --docroot=.
+else
+./maplibre --http-address=0.0.0.0 --http-port=8080  --docroot=.
 fi
 
 popd
