@@ -1,5 +1,6 @@
+#include <Wt/WWebWidget.h>
+#include <Wt/WApplication.h>
 #include "WMapbox.hh"
-#include "web/Configuration.h"
 #include "map.hh"
 
 namespace Wt

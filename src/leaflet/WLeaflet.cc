@@ -1,7 +1,12 @@
+#include <Wt/WWebWidget.h>
+#include <Wt/WApplication.h>
 #include "WLeaflet.hh"
-#include "web/Configuration.h"
 #include <sstream>
 #include "map.hh"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 std::vector<std::string> ward_color =
 { rgb_to_hex(128, 128, 0), //olive

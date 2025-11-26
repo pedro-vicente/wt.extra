@@ -23,7 +23,6 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/mapbox")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/leaflet")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/maplibre")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/wt-4.12.0/src")
 
 set(src ${src})
 set(src ${src} src/service.hh)
