@@ -25,7 +25,7 @@ else
         -DWT_INCLUDE="$path_wt/include"
 fi
 
-cmake --build . --config Debug --verbose
+cmake --build . --config Debug 
 
 echo "open browser http://localhost:8080"
 if [[ "$OSTYPE" == "msys"* ]]; then
