@@ -7,6 +7,18 @@ Wt.extra adds use of several popular Javascript libraries, including Mapbox
 
 [Mapbox](https://www.mapbox.com/) is a Javascript library for developing web mapping applications. 
 
+
+# Live demo at
+
+https://pedro-vicente.net:9444/
+
+# DC 311 Mapping
+
+![image](https://github.com/user-attachments/assets/ca689684-3ce3-4073-b51e-dae85645095c)
+
+This project creates an interactive web map visualization of Washington DC's 311 service request data using the Wt C++ web framework and Mapbox mapping technology.
+
+
 # Usage 
 
 Build Boost and Wt on a bash shell (Linux, Mac, Windows) with
@@ -23,16 +35,6 @@ Build with
 ```
 
 Access the web interface at `http://localhost:8080`
-
-Live demo at
-
-http://nostro.cloud:9000/
-
-# DC 311 Mapping
-
-![image](https://github.com/user-attachments/assets/ca689684-3ce3-4073-b51e-dae85645095c)
-
-This project creates an interactive web map visualization of Washington DC's 311 service request data using the Wt C++ web framework and Mapbox mapping technology.
 
 ## Features
 
